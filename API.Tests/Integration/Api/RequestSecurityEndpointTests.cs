@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using API.Tests.Integration.Api.Infrastructure;
 using API.Tests.Integration.Infrastructure;
+using Api.Entities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Tests.Integration.Api;
@@ -90,19 +91,17 @@ public sealed class RequestSecurityEndpointTests : ApiIntegrationTestBase
             cancellation.Token);
     }
 
-    [Fact(Skip =
-        "Known gap: RequestSecurityMiddleware only checks Content-Length, so a " +
-        "chunked authentication body above 16 KiB is accepted (returns 401). " +
-        "Un-skip once the authentication body limit is enforced for chunked requests.")]
-    public async Task ChunkedAuthenticationBodyAboveLimit_IsRejected()
+    [Theory]
+    [InlineData(AuthenticationBodyLimit + 1)]
+    [InlineData(AuthenticationBodyLimit * 4)]
+    public async Task ChunkedAuthenticationBodyAboveLimit_IsRejected(int size)
     {
-        // The size guard only inspects Content-Length. A chunked request has no
-        // Content-Length, so the 16 KiB authentication limit does not apply;
-        // only the server-wide limit bounds the body.
+        // A chunked request has no Content-Length, so the limit must be enforced
+        // on the bytes read and produce the same response as the header check.
         using var cancellation = CreateCancellation();
         using var client = Application.CreateHttpsClient();
         using var content = new UnknownLengthContent(
-            JsonBytesOfSize(AuthenticationBodyLimit * 4),
+            JsonBytesOfSize(size),
             "application/json");
 
         using var response = await client.PostAsync(
@@ -110,7 +109,90 @@ public sealed class RequestSecurityEndpointTests : ApiIntegrationTestBase
             content,
             cancellation.Token);
 
-        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+        Assert.Null(content.Headers.ContentLength);
+        await AssertProblemAsync(
+            response,
+            HttpStatusCode.RequestEntityTooLarge,
+            "Payload Too Large",
+            "The request body exceeds the permitted size.",
+            cancellation.Token);
+    }
+
+    [Theory]
+    [InlineData(AuthenticationBodyLimit - 1)]
+    [InlineData(AuthenticationBodyLimit)]
+    public async Task ChunkedAuthenticationBodyAtOrBelowLimit_IsProcessedNormally(int size)
+    {
+        using var cancellation = CreateCancellation();
+        using var client = Application.CreateHttpsClient();
+        using var content = new UnknownLengthContent(
+            JsonBytesOfSize(size),
+            "application/json");
+
+        using var response = await client.PostAsync(
+            "/api/auth/login",
+            content,
+            cancellation.Token);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChunkedBodyAboveGlobalLimit_IsRejected()
+    {
+        // Authenticated, so the request reaches model binding and the body is read.
+        using var cancellation = CreateCancellation();
+        using var client = await new AuthenticatedHttpClientFactory(Application)
+            .CreateAsync(
+                new User
+                {
+                    Id = Guid.NewGuid(),
+                    FirstName = "Body",
+                    LastName = "Limit",
+                    Email = "chunked-global@example.com",
+                    PasswordHash = "integration-test-password-hash",
+                    IsActive = true,
+                    CreatedAt = DateTimeOffset.UtcNow
+                },
+                cancellation.Token);
+        using var content = new UnknownLengthContent(
+            JsonBytesOfSize(GlobalBodyLimit + 1),
+            "application/json");
+
+        using var response = await client.PostAsync(
+            "/api/resumes",
+            content,
+            cancellation.Token);
+
+        await AssertProblemAsync(
+            response,
+            HttpStatusCode.RequestEntityTooLarge,
+            "Payload Too Large",
+            "The request body exceeds the permitted size.",
+            cancellation.Token);
+    }
+
+    [Fact]
+    public async Task DeclaredLengthBelowLimitButMoreBytesSent_IsRejected()
+    {
+        using var cancellation = CreateCancellation();
+        using var client = Application.CreateHttpsClient();
+        using var content = new MisdeclaredLengthContent(
+            JsonBytesOfSize(AuthenticationBodyLimit * 4),
+            declaredLength: 1_024,
+            "application/json");
+
+        using var response = await client.PostAsync(
+            "/api/auth/login",
+            content,
+            cancellation.Token);
+
+        await AssertProblemAsync(
+            response,
+            HttpStatusCode.RequestEntityTooLarge,
+            "Payload Too Large",
+            "The request body exceeds the permitted size.",
+            cancellation.Token);
     }
 
     [Theory]
@@ -246,6 +328,32 @@ public sealed class RequestSecurityEndpointTests : ApiIntegrationTestBase
         {
             length = 0;
             return false;
+        }
+    }
+
+    private sealed class MisdeclaredLengthContent : HttpContent
+    {
+        private readonly byte[] _bytes;
+
+        public MisdeclaredLengthContent(
+            byte[] bytes,
+            long declaredLength,
+            string mediaType)
+        {
+            _bytes = bytes;
+            Headers.ContentType = new MediaTypeHeaderValue(mediaType);
+            Headers.ContentLength = declaredLength;
+        }
+
+        protected override Task SerializeToStreamAsync(
+            Stream stream,
+            System.Net.TransportContext? context) =>
+            stream.WriteAsync(_bytes).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = Headers.ContentLength ?? 0;
+            return true;
         }
     }
 }
