@@ -32,19 +32,25 @@ public sealed class CorsOriginEndpointTests(PostgreSqlFixture fixture)
         Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
     }
 
-    [Fact(Skip =
-        "Known gap: HttpSecurityOptionsValidator accepts an origin with a trailing " +
-        "slash, but CORS compares it literally with the browser Origin header " +
-        "(which never has one), so the configured origin is silently never allowed.")]
-    public async Task OriginAcceptedByValidatorWithTrailingSlash_IsAllowedOnPreflight()
+    [Fact]
+    public void OriginWithTrailingSlash_IsRejectedAtStartup()
     {
-        using var response = await SendPreflightAsync(
-            configuredOrigin: Origin + "/",
-            requestOrigin: Origin);
+        // CORS compares the configured origin literally with the browser Origin
+        // header, which never ends with "/", so such a value must fail fast
+        // instead of silently never matching.
+        using var application = new ResuMatchWebApplicationFactory(
+            Fixture,
+            new Dictionary<string, string?>
+            {
+                ["HttpSecurity:AllowedOrigins:0"] = Origin + "/"
+            });
 
-        Assert.Equal(
-            Origin,
-            Assert.Single(response.Headers.GetValues("Access-Control-Allow-Origin")));
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _ = application.Services);
+        Assert.Contains(
+            $"Origin must not contain a path or trailing slash: '{Origin}/'. Use '{Origin}'.",
+            exception.Message,
+            StringComparison.Ordinal);
     }
 
     private async Task<HttpResponseMessage> SendPreflightAsync(

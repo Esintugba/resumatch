@@ -21,7 +21,6 @@ public sealed class HttpSecurityOptionsValidatorTests
     [InlineData("https://app.example.com")]
     [InlineData("http://localhost:4200")]
     [InlineData("https://app.example.com:8443")]
-    [InlineData("https://app.example.com/")]
     [InlineData("HTTPS://APP.EXAMPLE.COM")]
     [InlineData("Http://localhost:4200")]
     [InlineData("hTtPs://app.example.com")]
@@ -53,13 +52,45 @@ public sealed class HttpSecurityOptionsValidatorTests
     }
 
     [Theory]
-    [InlineData("https://app.example.com/path")]
-    [InlineData("https://app.example.com/path/")]
-    [InlineData("https://app.example.com//")]
-    [InlineData("https://app.example.com/index.html")]
-    public void OriginsWithPath_AreRejected(string origin)
+    [InlineData("https://app.example.com/", "https://app.example.com")]
+    [InlineData("http://localhost:4200/", "http://localhost:4200")]
+    [InlineData("https://app.example.com:8443/", "https://app.example.com:8443")]
+    [InlineData("HTTPS://APP.EXAMPLE.COM/", "https://app.example.com")]
+    [InlineData("https://[::1]:5001/", "https://[::1]:5001")]
+    [InlineData("https://app.example.com/path", "https://app.example.com")]
+    [InlineData("https://app.example.com/path/", "https://app.example.com")]
+    [InlineData("https://app.example.com//", "https://app.example.com")]
+    [InlineData("https://app.example.com/index.html", "https://app.example.com")]
+    [InlineData("https://app.example.com/.", "https://app.example.com")]
+    [InlineData("https://app.example.com/./", "https://app.example.com")]
+    public void OriginsWithPathOrTrailingSlash_AreRejectedWithCorrectedOrigin(
+        string origin,
+        string expectedOrigin)
     {
-        AssertOriginRejected(origin);
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { AllowedOrigins = [origin] });
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(
+            [
+                $"Origin must not contain a path or trailing slash: '{origin}'. " +
+                $"Use '{expectedOrigin}'."
+            ],
+            result.Failures!);
+    }
+
+    [Fact]
+    public void TrailingSlashMessage_ShowsOriginThatMatchesBrowserOriginHeader()
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { AllowedOrigins = ["https://app.example.com/"] });
+
+        Assert.Equal(
+            "Origin must not contain a path or trailing slash: 'https://app.example.com/'. " +
+            "Use 'https://app.example.com'.",
+            Assert.Single(result.Failures!));
     }
 
     [Theory]
@@ -96,6 +127,9 @@ public sealed class HttpSecurityOptionsValidatorTests
     [InlineData("app.example.com")]
     [InlineData("//app.example.com")]
     [InlineData("/relative")]
+    [InlineData("http:app.example.com")]
+    [InlineData("https:/app.example.com")]
+    [InlineData("https://app.example.com\\")]
     public void OriginsWithCredentialsQueryFragmentOrNoScheme_AreRejected(
         string origin)
     {

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Microsoft.Extensions.Options;
 
@@ -36,10 +37,20 @@ public sealed class HttpSecurityOptionsValidator :
 
         foreach (var origin in options.AllowedOrigins)
         {
-            if (!IsValidOrigin(origin))
+            if (!IsValidOrigin(origin, out var uri))
             {
                 failures.Add(
                     "Each CORS origin must be an absolute HTTP or HTTPS origin without wildcard, credentials, query, or fragment.");
+                break;
+            }
+
+            // CORS compares origins literally with the browser Origin header,
+            // which never has a path, so "https://host/" would never match.
+            if (HasPath(origin, uri))
+            {
+                failures.Add(
+                    $"Origin must not contain a path or trailing slash: '{origin}'. " +
+                    $"Use '{uri.GetLeftPart(UriPartial.Authority)}'.");
                 break;
             }
         }
@@ -93,10 +104,14 @@ public sealed class HttpSecurityOptionsValidator :
             : ValidateOptionsResult.Fail(failures);
     }
 
-    private static bool IsValidOrigin(string value)
+    private static bool IsValidOrigin(
+        string value,
+        [NotNullWhen(true)] out Uri? uri)
     {
+        uri = null;
         if (string.IsNullOrWhiteSpace(value) || value.Contains('*') ||
-            !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            !value.Contains("://", StringComparison.Ordinal) ||
+            !Uri.TryCreate(value, UriKind.Absolute, out uri) ||
             !(string.Equals(
                     uri.Scheme,
                     Uri.UriSchemeHttp,
@@ -107,13 +122,22 @@ public sealed class HttpSecurityOptionsValidator :
                     StringComparison.OrdinalIgnoreCase)) ||
             !string.IsNullOrEmpty(uri.UserInfo) ||
             !string.IsNullOrEmpty(uri.Query) ||
-            !string.IsNullOrEmpty(uri.Fragment) ||
-            uri.AbsolutePath != "/")
+            !string.IsNullOrEmpty(uri.Fragment))
         {
             return false;
         }
 
         return true;
+    }
+
+    private static bool HasPath(string value, Uri uri)
+    {
+        var authorityStart =
+            value.IndexOf("://", StringComparison.Ordinal) + "://".Length;
+
+        // Uri normalizes "/" and dot segments away, so inspect the raw value too.
+        return value.IndexOfAny(['/', '\\'], authorityStart) >= 0 ||
+            uri.AbsolutePath != "/";
     }
 }
 
