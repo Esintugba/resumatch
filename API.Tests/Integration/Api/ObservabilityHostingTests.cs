@@ -127,8 +127,7 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
     [Fact]
     public void ProductionProviderExecution_RequiresExplicitPinnedModelPolicy()
     {
-        using var application = new ResuMatchWebApplicationFactory(
-            Fixture,
+        using var application = CreateProductionApplication(
             new Dictionary<string, string?>
             {
                 ["JobPostingParseDrafts:WorkerEnabled"] = "true",
@@ -138,8 +137,7 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
                 ["JobDescriptionExtraction:Model"] = "operator-model",
                 ["JobDescriptionExtraction:RequirePinnedModel"] = "false",
                 ["JobDescriptionExtraction:ModelIsPinned"] = "false"
-            },
-            environmentName: "Production");
+            });
 
         var exception = Assert.Throws<InvalidOperationException>(
             () => _ = application.Services);
@@ -150,8 +148,7 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
     [Fact]
     public void ValidProductionLikeConfiguration_StartsWithoutCallingProvider()
     {
-        using var application = new ResuMatchWebApplicationFactory(
-            Fixture,
+        using var application = CreateProductionApplication(
             new Dictionary<string, string?>
             {
                 ["JobPostingParseDrafts:WorkerEnabled"] = "true",
@@ -163,8 +160,7 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
                 ["JobDescriptionExtraction:ModelIsPinned"] = "true",
                 ["Observability:Enabled"] = "true",
                 ["Observability:OtlpEnabled"] = "false"
-            },
-            environmentName: "Production");
+            });
 
         Assert.NotNull(application.Services);
     }
@@ -185,5 +181,23 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
 
         Assert.Equal(TimeSpan.FromSeconds(17), hostOptions.ShutdownTimeout);
         Assert.True(hostOptions.ServicesStopConcurrently);
+    }
+
+    private const string ProductionAllowedHosts = "api.resumatch.test";
+
+    // ProductionSecurityPolicy rejects the wildcard AllowedHosts from
+    // appsettings.json, so Production hosts need an explicit trusted host.
+    private ResuMatchWebApplicationFactory CreateProductionApplication(
+        IReadOnlyDictionary<string, string?> configurationOverrides)
+    {
+        var overrides = new Dictionary<string, string?>(configurationOverrides)
+        {
+            ["AllowedHosts"] = ProductionAllowedHosts
+        };
+
+        return new ResuMatchWebApplicationFactory(
+            Fixture,
+            overrides,
+            environmentName: "Production");
     }
 }
