@@ -1,0 +1,31 @@
+# Normalize text files to LF in the repository. LF matches every file already
+# committed and the majority of the working tree.
+* text=auto
+
+*.cs      text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.csproj  text eol=lf
+*.slnx    text eol=lf
+*.sh      text eol=lf
+
+# Windows scripts require CRLF.
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+
+# Binary files: never convert or diff as text.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+*.docx    binary
+*.zip     binary
+*.dll     binary
+*.exe     binary
+*.pdb     binary
+*.pfx     binary
+*.snk     binary
+*.woff    binary
+*.woff2   binary
