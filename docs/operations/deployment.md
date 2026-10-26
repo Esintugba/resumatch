@@ -9,6 +9,10 @@
 
 A readiness failure removes traffic and must not restart the process. Liveness never checks PostgreSQL, schema, provider, budget, circuit, queue, or OTLP. Public health output contains only overall/check status and duration.
 
+## HTTP security settings
+
+Production must override `AllowedHosts` with the explicit public host names (the base `*` makes startup fail) and set the `HttpSecurity` section: `AllowedOrigins` (exact browser origins such as `https://app.example.com`, without path, trailing slash, or default port), `AllowCredentials`, `TrustedProxies`, `TrustedNetworks`, `ForwardLimit`, and the HSTS options (`HstsEnabled` must stay `true`). `appsettings.Production.example.json` shows every field with placeholder values (`example.com` names and RFC 5737 documentation addresses), and a unit test keeps it valid against the options validators. Proxy settings are described in [Reverse proxy and client IP](#reverse-proxy-and-client-ip).
+
 ## Reverse proxy and client IP
 
 Behind a load balancer or reverse proxy, `HttpSecurity:TrustedProxies` (exact IPv4 dotted-quad or IPv6 addresses) or `HttpSecurity:TrustedNetworks` (CIDR) is mandatory in production, with `ForwardLimit` matching the number of proxy hops. Forwarded headers are processed only when one of them is set. Without them every request appears to come from the proxy address, so the IP-partitioned login and register rate limits are shared by all users and one client can exhaust them for everyone. The application does not detect this misconfiguration; verify it during the staging smoke test.
