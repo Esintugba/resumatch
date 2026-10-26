@@ -53,6 +53,15 @@ public sealed class HttpSecurityOptionsValidator :
                     $"Use '{uri.GetLeftPart(UriPartial.Authority)}'.");
                 break;
             }
+
+            // Browsers omit the scheme's default port from the Origin header.
+            if (HasExplicitDefaultPort(origin, uri))
+            {
+                failures.Add(
+                    $"Origin must not include the default port: '{origin}'. " +
+                    $"Use '{uri.GetLeftPart(UriPartial.Authority)}'.");
+                break;
+            }
         }
 
         if (options.AllowCredentials && options.AllowedOrigins.Length == 0)
@@ -73,10 +82,31 @@ public sealed class HttpSecurityOptionsValidator :
             failures.Add("Every TrustedProxies entry must be an IP address.");
         }
 
-        if (options.TrustedNetworks.Any(value => !IsStrictIpNetwork(value)))
+        var hasInvalidNetwork = false;
+        var hostBitFailures = new List<string>();
+        foreach (var network in options.TrustedNetworks)
+        {
+            if (!TryParseStrictIpNetwork(network, out var address, out var prefixLength))
+            {
+                hasInvalidNetwork = true;
+                continue;
+            }
+
+            var networkAddress = MaskToPrefix(address, prefixLength);
+            if (!networkAddress.Equals(address))
+            {
+                hostBitFailures.Add(
+                    $"TrustedNetworks entry '{network}' has host bits set. " +
+                    $"Use '{networkAddress}/{prefixLength}'.");
+            }
+        }
+
+        if (hasInvalidNetwork)
         {
             failures.Add("Every TrustedNetworks entry must use valid CIDR notation.");
         }
+
+        failures.AddRange(hostBitFailures);
 
         if (options.ForwardLimit is < 1 or > 5)
         {
@@ -148,8 +178,13 @@ public sealed class HttpSecurityOptionsValidator :
         };
     }
 
-    private static bool IsStrictIpNetwork(string? value)
+    private static bool TryParseStrictIpNetwork(
+        string? value,
+        [NotNullWhen(true)] out IPAddress? address,
+        out int prefixLength)
     {
+        address = null;
+        prefixLength = 0;
         if (string.IsNullOrEmpty(value))
         {
             return false;
@@ -164,10 +199,46 @@ public sealed class HttpSecurityOptionsValidator :
         }
 
         var prefix = value[(separator + 1)..];
-        return prefix.Length is > 0 and <= 3 &&
-            prefix.All(char.IsAsciiDigit) &&
-            (prefix.Length == 1 || prefix[0] != '0') &&
-            IPNetwork.TryParse(value, out _);
+        if (prefix.Length is 0 or > 3 ||
+            !prefix.All(char.IsAsciiDigit) ||
+            (prefix.Length > 1 && prefix[0] == '0') ||
+            !IPNetwork.TryParse(value, out _))
+        {
+            return false;
+        }
+
+        address = IPAddress.Parse(value[..separator]);
+        prefixLength = int.Parse(
+            prefix,
+            System.Globalization.CultureInfo.InvariantCulture);
+        return true;
+    }
+
+    private static IPAddress MaskToPrefix(IPAddress address, int prefixLength)
+    {
+        var bytes = address.GetAddressBytes();
+        for (var index = 0; index < bytes.Length; index++)
+        {
+            var bitsInByte = Math.Clamp(prefixLength - (index * 8), 0, 8);
+            bytes[index] &= (byte)(0xFF << (8 - bitsInByte));
+        }
+
+        return new IPAddress(bytes);
+    }
+
+    private static bool HasExplicitDefaultPort(string value, Uri uri)
+    {
+        if (!uri.IsDefaultPort)
+        {
+            return false;
+        }
+
+        var authority =
+            value[(value.IndexOf("://", StringComparison.Ordinal) + "://".Length)..];
+
+        // A colon after the IPv6 closing bracket (or anywhere for other hosts)
+        // means the port was written explicitly.
+        return authority.LastIndexOf(':') > authority.LastIndexOf(']');
     }
 
     private static bool IsDottedQuad(string value)

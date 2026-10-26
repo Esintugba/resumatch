@@ -80,6 +80,50 @@ public sealed class HttpSecurityOptionsValidatorTests
             result.Failures!);
     }
 
+    [Theory]
+    [InlineData("https://app.example.com:443", "https://app.example.com")]
+    [InlineData("HTTPS://APP.EXAMPLE.COM:443", "https://app.example.com")]
+    [InlineData("https://app.example.com:0443", "https://app.example.com")]
+    [InlineData("http://app.example.com:80", "http://app.example.com")]
+    [InlineData("http://localhost:80", "http://localhost")]
+    [InlineData("https://[::1]:443", "https://[::1]")]
+    [InlineData("https://127.0.0.1:443", "https://127.0.0.1")]
+    public void OriginsWithExplicitDefaultPort_AreRejectedWithCorrectedOrigin(
+        string origin,
+        string expectedOrigin)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { AllowedOrigins = [origin] });
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(
+            [
+                $"Origin must not include the default port: '{origin}'. " +
+                $"Use '{expectedOrigin}'."
+            ],
+            result.Failures!);
+    }
+
+    [Theory]
+    [InlineData("https://localhost:5173")]
+    [InlineData("http://localhost:5173")]
+    [InlineData("https://app.example.com:8443")]
+    [InlineData("http://app.example.com:443")]
+    [InlineData("https://app.example.com:80")]
+    [InlineData("http://app.example.com:8080")]
+    [InlineData("https://[::1]:5001")]
+    [InlineData("https://[::1]")]
+    [InlineData("https://app.example.com")]
+    public void OriginsWithoutExplicitDefaultPort_AreAccepted(string origin)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { AllowedOrigins = [origin] });
+
+        Assert.True(result.Succeeded, result.FailureMessage);
+    }
+
     [Fact]
     public void TrailingSlashMessage_ShowsOriginThatMatchesBrowserOriginHeader()
     {
@@ -274,6 +318,70 @@ public sealed class HttpSecurityOptionsValidatorTests
             new HttpSecurityOptions { TrustedNetworks = [network] });
 
         Assert.True(result.Succeeded, result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData("10.0.0.0/8")]
+    [InlineData("10.0.0.128/25")]
+    [InlineData("10.0.0.1/32")]
+    [InlineData("255.255.255.255/32")]
+    [InlineData("0.0.0.0/0")]
+    [InlineData("2001:db8::/32")]
+    [InlineData("2001:db8::1/128")]
+    [InlineData("fe80::/10")]
+    [InlineData("::/0")]
+    public void TrustedNetworks_AcceptNetworkAddressForPrefix(string network)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { TrustedNetworks = [network] });
+
+        Assert.True(result.Succeeded, result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData("10.0.0.1/8", "10.0.0.0/8")]
+    [InlineData("10.1.2.3/16", "10.1.0.0/16")]
+    [InlineData("10.0.0.255/24", "10.0.0.0/24")]
+    [InlineData("10.0.0.129/25", "10.0.0.128/25")]
+    [InlineData("10.0.0.3/31", "10.0.0.2/31")]
+    [InlineData("10.0.0.1/0", "0.0.0.0/0")]
+    [InlineData("255.255.255.255/0", "0.0.0.0/0")]
+    [InlineData("2001:db8::1/32", "2001:db8::/32")]
+    [InlineData("2001:db8:1:2::1/64", "2001:db8:1:2::/64")]
+    [InlineData("fe80::1/10", "fe80::/10")]
+    [InlineData("2001:db8::1/127", "2001:db8::/127")]
+    [InlineData("::1/0", "::/0")]
+    public void TrustedNetworks_WithHostBitsSet_AreRejectedWithNetworkAddress(
+        string network,
+        string expected)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { TrustedNetworks = [network] });
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(
+            [$"TrustedNetworks entry '{network}' has host bits set. Use '{expected}'."],
+            result.Failures!);
+    }
+
+    [Fact]
+    public void TrustedNetworks_ReportEachEntryWithHostBitsSet()
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions
+            {
+                TrustedNetworks = ["10.0.0.0/8", "10.0.0.1/8", "192.168.1.1/24"]
+            });
+
+        Assert.Equal(
+            [
+                "TrustedNetworks entry '10.0.0.1/8' has host bits set. Use '10.0.0.0/8'.",
+                "TrustedNetworks entry '192.168.1.1/24' has host bits set. Use '192.168.1.0/24'."
+            ],
+            result.Failures!);
     }
 
     [Theory]
