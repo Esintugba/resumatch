@@ -97,7 +97,14 @@ public sealed class HttpSecurityOptionsValidator :
     {
         if (string.IsNullOrWhiteSpace(value) || value.Contains('*') ||
             !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
-            uri.Scheme is not (Uri.UriSchemeHttp or Uri.UriSchemeHttps) ||
+            !(string.Equals(
+                    uri.Scheme,
+                    Uri.UriSchemeHttp,
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    uri.Scheme,
+                    Uri.UriSchemeHttps,
+                    StringComparison.OrdinalIgnoreCase)) ||
             !string.IsNullOrEmpty(uri.UserInfo) ||
             !string.IsNullOrEmpty(uri.Query) ||
             !string.IsNullOrEmpty(uri.Fragment) ||

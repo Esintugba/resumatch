@@ -15,9 +15,9 @@ public sealed class SecurityHeadersMiddleware
         {
             var response = (HttpResponse)state;
             response.Headers.XContentTypeOptions = "nosniff";
-            response.Headers.ReferrerPolicy = "no-referrer";
+            response.Headers["Referrer-Policy"] = "no-referrer";
             response.Headers.XFrameOptions = "DENY";
-            response.Headers.PermissionsPolicy =
+            response.Headers["Permissions-Policy"] =
                 "camera=(), microphone=(), geolocation=()";
             return Task.CompletedTask;
         }, context.Response);
