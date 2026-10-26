@@ -194,34 +194,114 @@ public sealed class HttpSecurityOptionsValidatorTests
     }
 
     [Theory]
-    [InlineData("10.0.0.1", true)]
-    [InlineData("::1", true)]
-    [InlineData("10.0.0", true)]
-    [InlineData("10.0.0.256", false)]
-    [InlineData("proxy.internal", false)]
-    [InlineData("10.0.0.0/8", false)]
-    public void TrustedProxies_MustBeIpAddresses(string proxy, bool expectedValid)
+    [InlineData("10.0.0.1")]
+    [InlineData("0.0.0.0")]
+    [InlineData("255.255.255.255")]
+    [InlineData("192.168.1.10")]
+    [InlineData("::1")]
+    [InlineData("::")]
+    [InlineData("fd00::10")]
+    [InlineData("2001:db8::1")]
+    [InlineData("2001:0db8:0000:0000:0000:0000:0000:0001")]
+    [InlineData("::ffff:10.0.0.1")]
+    [InlineData("fe80::1%1")]
+    public void TrustedProxies_AcceptFullIpv4AndValidIpv6(string proxy)
     {
         var result = _validator.Validate(
             null,
             new HttpSecurityOptions { TrustedProxies = [proxy] });
 
-        Assert.Equal(expectedValid, result.Succeeded);
+        Assert.True(result.Succeeded, result.FailureMessage);
     }
 
     [Theory]
-    [InlineData("10.0.0.0/8", true)]
-    [InlineData("fd00::/8", true)]
-    [InlineData("10.0.0.1", false)]
-    [InlineData("10.0.0.0/33", false)]
-    [InlineData("not-a-network", false)]
-    public void TrustedNetworks_MustUseCidrNotation(string network, bool expectedValid)
+    [InlineData("10.0.0")]
+    [InlineData("10.0")]
+    [InlineData("10")]
+    [InlineData("167772161")]
+    [InlineData("10.0.0.256")]
+    [InlineData("10.0.0.1.5")]
+    [InlineData("10..0.1")]
+    [InlineData("10.0.0.")]
+    [InlineData(".10.0.0.1")]
+    [InlineData("010.0.0.1")]
+    [InlineData("10.0.0.01")]
+    [InlineData("0x0A.0.0.1")]
+    [InlineData("0xA000001")]
+    [InlineData(" 10.0.0.1")]
+    [InlineData("10.0.0.1 ")]
+    [InlineData("10.0.0.0/8")]
+    [InlineData("::1/128")]
+    [InlineData("2001:db8::g")]
+    [InlineData("2001:db8:::1")]
+    [InlineData("proxy.internal")]
+    [InlineData("localhost")]
+    [InlineData("")]
+    public void TrustedProxies_RejectIncompleteOrNonCanonicalAddresses(string proxy)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { TrustedProxies = [proxy] });
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(
+            ["Every TrustedProxies entry must be an IP address."],
+            result.Failures!);
+    }
+
+    [Fact]
+    public void TrustedProxies_OneInvalidEntryRejectsTheList()
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { TrustedProxies = ["10.0.0.1", "10.0.0"] });
+
+        Assert.False(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("10.0.0.0/8")]
+    [InlineData("192.168.0.0/16")]
+    [InlineData("10.1.2.3/32")]
+    [InlineData("0.0.0.0/0")]
+    [InlineData("fd00::/8")]
+    [InlineData("2001:db8::/32")]
+    [InlineData("::1/128")]
+    public void TrustedNetworks_AcceptValidCidr(string network)
     {
         var result = _validator.Validate(
             null,
             new HttpSecurityOptions { TrustedNetworks = [network] });
 
-        Assert.Equal(expectedValid, result.Succeeded);
+        Assert.True(result.Succeeded, result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData("10.0.0.1")]
+    [InlineData("10.0.0.0/33")]
+    [InlineData("fd00::/129")]
+    [InlineData("10.0/8")]
+    [InlineData("10/8")]
+    [InlineData("010.0.0.0/8")]
+    [InlineData("10.0.0.0/08")]
+    [InlineData("10.0.0.0/")]
+    [InlineData("/8")]
+    [InlineData("10.0.0.0/8/8")]
+    [InlineData("10.0.0.0/-1")]
+    [InlineData("10.0.0.0/+8")]
+    [InlineData("10.0.0.0/ 8")]
+    [InlineData("not-a-network")]
+    [InlineData("")]
+    public void TrustedNetworks_RejectInvalidOrIncompleteCidr(string network)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { TrustedNetworks = [network] });
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(
+            ["Every TrustedNetworks entry must use valid CIDR notation."],
+            result.Failures!);
     }
 
     [Fact]

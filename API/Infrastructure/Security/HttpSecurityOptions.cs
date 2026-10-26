@@ -68,14 +68,12 @@ public sealed class HttpSecurityOptionsValidator :
                 "Trusted proxy and network lists cannot exceed 50 entries each.");
         }
 
-        if (options.TrustedProxies.Any(value =>
-                !IPAddress.TryParse(value, out _)))
+        if (options.TrustedProxies.Any(value => !IsStrictIpAddress(value)))
         {
             failures.Add("Every TrustedProxies entry must be an IP address.");
         }
 
-        if (options.TrustedNetworks.Any(value =>
-                !IPNetwork.TryParse(value, out _)))
+        if (options.TrustedNetworks.Any(value => !IsStrictIpNetwork(value)))
         {
             failures.Add("Every TrustedNetworks entry must use valid CIDR notation.");
         }
@@ -128,6 +126,58 @@ public sealed class HttpSecurityOptionsValidator :
         }
 
         return true;
+    }
+
+    // IPAddress.TryParse also accepts legacy IPv4 forms such as "10.0.0"
+    // (read as 10.0.0.0), "10" or octal/hex parts, so IPv4 must be an explicit
+    // dotted quad and IPv6 must use colon notation.
+    private static bool IsStrictIpAddress(string? value)
+    {
+        if (string.IsNullOrEmpty(value) ||
+            !IPAddress.TryParse(value, out var address))
+        {
+            return false;
+        }
+
+        return address.AddressFamily switch
+        {
+            System.Net.Sockets.AddressFamily.InterNetwork => IsDottedQuad(value),
+            System.Net.Sockets.AddressFamily.InterNetworkV6 =>
+                value.Contains(':', StringComparison.Ordinal),
+            _ => false
+        };
+    }
+
+    private static bool IsStrictIpNetwork(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        var separator = value.IndexOf('/', StringComparison.Ordinal);
+        if (separator <= 0 ||
+            separator != value.LastIndexOf('/') ||
+            !IsStrictIpAddress(value[..separator]))
+        {
+            return false;
+        }
+
+        var prefix = value[(separator + 1)..];
+        return prefix.Length is > 0 and <= 3 &&
+            prefix.All(char.IsAsciiDigit) &&
+            (prefix.Length == 1 || prefix[0] != '0') &&
+            IPNetwork.TryParse(value, out _);
+    }
+
+    private static bool IsDottedQuad(string value)
+    {
+        var parts = value.Split('.');
+        return parts.Length == 4 && parts.All(part =>
+            part.Length is > 0 and <= 3 &&
+            part.All(char.IsAsciiDigit) &&
+            (part.Length == 1 || part[0] != '0') &&
+            int.Parse(part, System.Globalization.CultureInfo.InvariantCulture) <= 255);
     }
 
     private static bool HasPath(string value, Uri uri)
