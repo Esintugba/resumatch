@@ -1,0 +1,40 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ll]og/
+[Ll]ogs/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Tests
+TestResults/
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+*.coverage
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Local config and secrets
+appsettings.*.local.json
+.env
+.env.*
+
+# Temp
+.tmp/
+*.tmp
+*.log
