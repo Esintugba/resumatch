@@ -65,7 +65,7 @@ public sealed class RequestSecurityMiddleware
         }
     }
 
-    private static Task WriteBodyTooLargeAsync(HttpContext context)
+    internal static Task WriteBodyTooLargeAsync(HttpContext context)
     {
         ApiSecurityMetrics.RequestsRejected.Add(
             1,

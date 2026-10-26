@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using Api.Application.Common.Exceptions;
+using Api.Infrastructure.Security;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,23 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        // Kestrel enforces the server-wide body limit itself while the body is
+        // read; answer exactly like RequestSecurityMiddleware does.
+        if (exception is BadHttpRequestException
+            {
+                StatusCode: StatusCodes.Status413PayloadTooLarge
+            })
+        {
+            _logger.LogWarning(
+                "Request {Method} {Path} failed with status code {StatusCode} and exception type {ExceptionType}.",
+                httpContext.Request.Method,
+                httpContext.Request.Path,
+                StatusCodes.Status413PayloadTooLarge,
+                exception.GetType().Name);
+            await RequestSecurityMiddleware.WriteBodyTooLargeAsync(httpContext);
+            return true;
+        }
+
         var problemDetails = CreateProblemDetails(httpContext, exception);
 
         if (exception is TooManyRequestsException { RetryAfter: { } retryAfter })
