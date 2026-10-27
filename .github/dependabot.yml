@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      microsoft-and-ef-core:
+        patterns:
+          - "Microsoft.*"
+          - "Npgsql.EntityFrameworkCore.PostgreSQL"
+          - "dotnet-ef"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
