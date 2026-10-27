@@ -710,7 +710,7 @@ if (app.Environment.IsDevelopment() || httpSecuritySettings.ExposeOpenApi)
     app.UseSwaggerUI(options =>
     {
         options.DocumentTitle = "API";
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+        options.SwaggerEndpoint("/openapi/v1.json", "v1");
     });
 }
 

@@ -54,7 +54,7 @@ Check that it is up:
 - `GET /health/live`: process liveness (no dependencies).
 - `GET /health/ready`: database, schema compatibility, configuration, and job parser checks.
 
-In the `Development` environment (or with `HttpSecurity:ExposeOpenApi=true`) the OpenAPI document is served at `/openapi/v1.json`. A Swagger UI page is mapped at `/swagger`, but it currently requests `/swagger/v1/swagger.json`, which is not served, so use the `/openapi/v1.json` document directly.
+In the `Development` environment the OpenAPI document is served anonymously at `/openapi/v1.json` and Swagger UI at `/swagger` (for example `http://localhost:5252/swagger`). Other non-production environments can opt in with `HttpSecurity:ExposeOpenApi=true`; in `Production` both are disabled and enabling the option makes startup fail.
 
 All `/api/*` endpoints except `POST /api/auth/register` and `POST /api/auth/login` require a bearer token returned by those endpoints.
 

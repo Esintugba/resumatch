@@ -127,7 +127,8 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
     [Fact]
     public void ProductionProviderExecution_RequiresExplicitPinnedModelPolicy()
     {
-        using var application = CreateProductionApplication(
+        using var application = ProductionApplication.Create(
+            Fixture,
             new Dictionary<string, string?>
             {
                 ["JobPostingParseDrafts:WorkerEnabled"] = "true",
@@ -148,7 +149,8 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
     [Fact]
     public void ValidProductionLikeConfiguration_StartsWithoutCallingProvider()
     {
-        using var application = CreateProductionApplication(
+        using var application = ProductionApplication.Create(
+            Fixture,
             new Dictionary<string, string?>
             {
                 ["JobPostingParseDrafts:WorkerEnabled"] = "true",
@@ -181,23 +183,5 @@ public sealed class ObservabilityHostingTests(PostgreSqlFixture fixture)
 
         Assert.Equal(TimeSpan.FromSeconds(17), hostOptions.ShutdownTimeout);
         Assert.True(hostOptions.ServicesStopConcurrently);
-    }
-
-    private const string ProductionAllowedHosts = "api.resumatch.test";
-
-    // ProductionSecurityPolicy rejects the wildcard AllowedHosts from
-    // appsettings.json, so Production hosts need an explicit trusted host.
-    private ResuMatchWebApplicationFactory CreateProductionApplication(
-        IReadOnlyDictionary<string, string?> configurationOverrides)
-    {
-        var overrides = new Dictionary<string, string?>(configurationOverrides)
-        {
-            ["AllowedHosts"] = ProductionAllowedHosts
-        };
-
-        return new ResuMatchWebApplicationFactory(
-            Fixture,
-            overrides,
-            environmentName: "Production");
     }
 }

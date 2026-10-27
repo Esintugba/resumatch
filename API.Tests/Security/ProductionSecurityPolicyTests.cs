@@ -92,6 +92,30 @@ public sealed class ProductionSecurityPolicyTests
     }
 
     [Fact]
+    public void Production_WithOpenApiExposed_IsRejected()
+    {
+        var failures = ProductionSecurityPolicy.Validate(
+            isProduction: true,
+            "api.example.com",
+            new HttpSecurityOptions { ExposeOpenApi = true });
+
+        Assert.Equal(
+            ["The OpenAPI document and Swagger UI cannot be exposed in production."],
+            failures);
+    }
+
+    [Fact]
+    public void NonProduction_MayExposeOpenApi()
+    {
+        var failures = ProductionSecurityPolicy.Validate(
+            isProduction: false,
+            "*",
+            new HttpSecurityOptions { ExposeOpenApi = true });
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
     public void Production_ReportsAllFailuresTogether()
     {
         var failures = ProductionSecurityPolicy.Validate(

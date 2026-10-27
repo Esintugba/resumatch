@@ -290,6 +290,12 @@ public static class ProductionSecurityPolicy
             failures.Add("HSTS must be enabled in production.");
         }
 
+        if (options.ExposeOpenApi)
+        {
+            failures.Add(
+                "The OpenAPI document and Swagger UI cannot be exposed in production.");
+        }
+
         return failures;
     }
 }
