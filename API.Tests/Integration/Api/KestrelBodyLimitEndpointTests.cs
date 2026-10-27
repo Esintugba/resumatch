@@ -97,6 +97,57 @@ public sealed class KestrelBodyLimitEndpointTests(PostgreSqlFixture fixture)
         await AssertPayloadTooLargeAsync(response, "/api/auth/login", cancellation.Token);
     }
 
+    [Fact]
+    public async Task MalformedChunkedBody_Returns400ProblemDetailsWithoutDetails()
+    {
+        // Kestrel throws BadHttpRequestException("Bad chunk size data") when the
+        // endpoint reads this body; HttpClient cannot send it, so use raw TCP.
+        using var cancellation = CreateCancellation();
+        using var server = await KestrelServer.StartAsync(Fixture, cancellation.Token);
+        var request =
+            "POST /api/resumes HTTP/1.1\r\n" +
+            "Host: localhost\r\n" +
+            $"Authorization: Bearer {server.AccessToken}\r\n" +
+            "Content-Type: application/json\r\n" +
+            "Transfer-Encoding: chunked\r\n" +
+            "\r\n" +
+            "ZZ\r\n{}\r\n0\r\n\r\n";
+
+        var response = await RawHttp.SendAsync(server.Address, request, cancellation.Token);
+
+        Assert.Equal(400, response.StatusCode);
+        Assert.Contains(
+            "Content-Type: application/problem+json",
+            response.Headers,
+            StringComparison.OrdinalIgnoreCase);
+        using var document = JsonDocument.Parse(response.Body);
+        var body = document.RootElement;
+        Assert.Equal(400, body.GetProperty("status").GetInt32());
+        Assert.Equal("Bad Request", body.GetProperty("title").GetString());
+        Assert.Equal(
+            "The request could not be processed because it was malformed or incomplete.",
+            body.GetProperty("detail").GetString());
+        Assert.DoesNotContain("chunk", response.Body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task OversizedRequestHeaders_AreRejectedWith431NotServerError()
+    {
+        // Kestrel answers this itself before the application pipeline runs;
+        // the test pins that the client sees a 4xx and never a 5xx.
+        using var cancellation = CreateCancellation();
+        using var server = await KestrelServer.StartAsync(Fixture, cancellation.Token);
+        var request =
+            "GET /health/live HTTP/1.1\r\n" +
+            "Host: localhost\r\n" +
+            $"X-Oversized: {new string('a', 40_000)}\r\n" +
+            "\r\n";
+
+        var response = await RawHttp.SendAsync(server.Address, request, cancellation.Token);
+
+        Assert.Equal(431, response.StatusCode);
+    }
+
     private static async Task AssertPayloadTooLargeAsync(
         HttpResponseMessage response,
         string expectedInstance,
@@ -141,14 +192,20 @@ public sealed class KestrelBodyLimitEndpointTests(PostgreSqlFixture fixture)
 
         private KestrelServer(
             ResuMatchWebApplicationFactory application,
+            Uri address,
+            string accessToken,
             HttpClient anonymousClient,
             HttpClient authenticatedClient)
         {
             _application = application;
+            Address = address;
+            AccessToken = accessToken;
             AnonymousClient = anonymousClient;
             AuthenticatedClient = authenticatedClient;
         }
 
+        public Uri Address { get; }
+        public string AccessToken { get; }
         public HttpClient AnonymousClient { get; }
         public HttpClient AuthenticatedClient { get; }
 
@@ -193,7 +250,12 @@ public sealed class KestrelBodyLimitEndpointTests(PostgreSqlFixture fixture)
                 authenticated.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
 
-                return new KestrelServer(application, anonymous, authenticated);
+                return new KestrelServer(
+                    application,
+                    new Uri(address),
+                    token,
+                    anonymous,
+                    authenticated);
             }
             catch
             {
@@ -215,6 +277,66 @@ public sealed class KestrelBodyLimitEndpointTests(PostgreSqlFixture fixture)
                 BaseAddress = new Uri(address)
             };
     }
+
+    private static class RawHttp
+    {
+        public static async Task<RawHttpResponse> SendAsync(
+            Uri address,
+            string request,
+            CancellationToken cancellationToken)
+        {
+            using var client = new System.Net.Sockets.TcpClient();
+            await client.ConnectAsync(address.Host, address.Port, cancellationToken);
+            await using var stream = client.GetStream();
+            await stream.WriteAsync(Encoding.ASCII.GetBytes(request), cancellationToken);
+
+            // Kestrel closes the connection after a bad request, so read to EOF.
+            using var received = new MemoryStream();
+            var buffer = new byte[8192];
+            int read;
+            while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                received.Write(buffer, 0, read);
+            }
+
+            var text = Encoding.UTF8.GetString(received.ToArray());
+            var headerEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+            Assert.True(headerEnd > 0, "No HTTP response headers were received.");
+            var headers = text[..headerEnd];
+            var body = text[(headerEnd + 4)..];
+            var statusCode = int.Parse(
+                headers.Split(' ', 3)[1],
+                System.Globalization.CultureInfo.InvariantCulture);
+            if (headers.Contains(
+                    "Transfer-Encoding: chunked",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                body = Dechunk(body);
+            }
+
+            return new RawHttpResponse(statusCode, headers, body);
+        }
+
+        private static string Dechunk(string chunked)
+        {
+            var result = new StringBuilder();
+            var position = 0;
+            while (true)
+            {
+                var lineEnd = chunked.IndexOf("\r\n", position, StringComparison.Ordinal);
+                var size = Convert.ToInt32(chunked[position..lineEnd], 16);
+                if (size == 0)
+                {
+                    return result.ToString();
+                }
+
+                result.Append(chunked, lineEnd + 2, size);
+                position = lineEnd + 2 + size + 2;
+            }
+        }
+    }
+
+    private sealed record RawHttpResponse(int StatusCode, string Headers, string Body);
 
     private sealed class UnknownLengthContent : HttpContent
     {

@@ -4,6 +4,7 @@ using Api.Application.Common.Exceptions;
 using Api.Infrastructure.Security;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -180,6 +181,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     Detail = DuplicateJobPostingSkillMessage
                 },
 
+            // Raised by the server for malformed requests (bad chunked framing,
+            // timeouts, oversized headers). Use its status code but never its
+            // message, which can echo request details.
+            BadHttpRequestException badHttpRequestException =>
+                CreateBadRequestProblemDetails(badHttpRequestException.StatusCode),
+
             ValidationException validationException => new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
@@ -200,6 +207,23 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
         return problemDetails;
+    }
+
+    private static ProblemDetails CreateBadRequestProblemDetails(int statusCode)
+    {
+        // BadHttpRequestException always describes a client error; anything
+        // outside 4xx would be a server bug, so fall back to a plain 400.
+        var status = statusCode is >= 400 and < 500
+            ? statusCode
+            : StatusCodes.Status400BadRequest;
+        var title = ReasonPhrases.GetReasonPhrase(status);
+
+        return new ProblemDetails
+        {
+            Status = status,
+            Title = string.IsNullOrEmpty(title) ? "Bad Request" : title,
+            Detail = "The request could not be processed because it was malformed or incomplete."
+        };
     }
 
     private static bool IsDuplicateEmailViolation(DbUpdateException exception)
