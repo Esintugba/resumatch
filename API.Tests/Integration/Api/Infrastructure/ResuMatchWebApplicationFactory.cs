@@ -18,6 +18,7 @@ public sealed class ResuMatchWebApplicationFactory
 {
     public const string TestIssuer = "ResuMatch.IntegrationTests";
     public const string TestAudience = "ResuMatch.IntegrationTests.Client";
+    // Test-only signing key. Never use outside tests.
     public const string TestSigningSecret =
         "pALwOlvmqn7BAJ71JrIkCUTmP8KR1unQcygMP5yaVHc=";
     public const int TestAccessTokenExpirationMinutes = 15;
