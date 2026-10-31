@@ -73,14 +73,16 @@ Migrations use the direct host, because Neon does not support pooled connections
 
 ### CI deployment
 
-The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs and uses the GitHub `production` environment. It builds an EF Core migration bundle, applies it to Neon, calls the Render deploy hook for that commit, waits for the new version, waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
+The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs. It builds an EF Core migration bundle, applies it to Neon, calls the Render deploy hook for that commit, waits for the new version, waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
 
 | GitHub setting | Kind | Required |
 |---|---|---|
-| `NEON_MIGRATION_CONNECTION_STRING` (direct host) | Environment secret | Yes |
-| `RENDER_DEPLOY_HOOK_URL` | Environment secret | Yes |
-| `RENDER_API_KEY` | Environment secret | Recommended: without it CI cannot tell when the new version is live, waits a fixed 5 minutes, and the smoke test may reach the previous version |
-| `PRODUCTION_URL` | Environment variable | Only if the service is not `https://resumatch-api.onrender.com` |
+| `NEON_MIGRATION_CONNECTION_STRING` (direct host) | Repository secret | Yes |
+| `RENDER_DEPLOY_HOOK_URL` | Repository secret | Yes |
+| `RENDER_API_KEY` | Repository secret | Recommended: without it CI cannot tell when the new version is live, waits a fixed 5 minutes, and the smoke test may reach the previous version |
+| `PRODUCTION_URL` | Repository variable | Only if the service is not `https://resumatch-api.onrender.com` |
+
+GitHub environments and environment secrets are unavailable to private repositories on the Free plan, so these are repository secrets. Only the `deploy` job references them. That job runs only for pushes to `main`, and the workflow does not use `pull_request_target`, so pull request runs never receive them.
 
 Migrations run before the new version starts, so they must stay backward compatible with the running version (see below).
 

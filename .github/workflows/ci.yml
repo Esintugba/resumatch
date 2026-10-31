@@ -124,9 +124,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    environment:
-      name: production
-      url: ${{ vars.PRODUCTION_URL || 'https://resumatch-api.onrender.com' }}
     concurrency:
       group: production-deploy
       cancel-in-progress: false
@@ -146,7 +143,7 @@ jobs:
           missing=0
           for name in NEON_MIGRATION_CONNECTION_STRING RENDER_DEPLOY_HOOK_URL; do
             if [ -z "${!name}" ]; then
-              echo "::error::Secret $name is empty. Add it to the GitHub 'production' environment (see docs/operations/deployment.md)."
+              echo "::error::Secret $name is empty. Add it as a repository secret (see docs/operations/deployment.md)."
               missing=1
             fi
           done
