@@ -138,7 +138,14 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedFor |
         ForwardedHeaders.XForwardedProto;
     options.ForwardLimit = httpSecuritySettings.ForwardLimit;
-    options.RequireHeaderSymmetry = true;
+    options.ForwardedForHeaderName = httpSecuritySettings.ForwardedForHeaderName;
+
+    // A dedicated client-IP header always has one value, so it cannot be paired
+    // with X-Forwarded-Proto entry by entry.
+    options.RequireHeaderSymmetry = string.Equals(
+        httpSecuritySettings.ForwardedForHeaderName,
+        ForwardedHeadersDefaults.XForwardedForHeaderName,
+        StringComparison.OrdinalIgnoreCase);
     options.KnownProxies.Clear();
     options.KnownIPNetworks.Clear();
     foreach (var proxy in httpSecuritySettings.TrustedProxies)
