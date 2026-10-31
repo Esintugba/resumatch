@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Esintugba/resumatch/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Esintugba/resumatch/actions/workflows/ci.yml)
 
-**Live API:** _not deployed yet_
+**Live API:** <https://resumatch-api-da3z.onrender.com> (free tier: the first request after 15 idle minutes takes about 40 seconds; check [`/health/ready`](https://resumatch-api-da3z.onrender.com/health/ready))
 
 ResuMatch is an ASP.NET Core Web API for ATS-oriented resume analysis and job posting matching. Users manage structured resumes (contact, experience, education, projects, skills, languages, certifications, links) and job postings, run a deterministic rule-based ATS analysis (`ats-v1`) with optional job-match scoring and recommendations, and track job applications. Job descriptions can be parsed into skill drafts by an optional OpenAI-backed background worker protected by budgets, rate limits, distributed concurrency, and a circuit breaker.
 
