@@ -37,7 +37,7 @@ The image listens on `PORT`. Do not set `ASPNETCORE_HTTPS_PORT`: Render already 
 
 Set `HttpSecurity__ForwardedForHeaderName=CF-Connecting-IP`. All inbound traffic passes through Cloudflare, which overwrites that header with the real client address. Do not use `X-Forwarded-For` here: Cloudflare appends to it, so a caller controls the leftmost entries, and its multi-hop value cannot satisfy header symmetry with a single `X-Forwarded-Proto`. See [Reverse proxy and client IP](#reverse-proxy-and-client-ip) for the general rule.
 
-Trust only private and loopback peers (`TrustedNetworks` `10.0.0.0/8`, `TrustedProxies` `127.0.0.1` and `::1`). The container is not reachable from the internet directly, and the application accepts the header only from those peers. After changing this, verify on the live service that a spoofed `CF-Connecting-IP` or `X-Forwarded-For` does not reset the login limit. If Render stops fronting services with Cloudflare, this setting must be reviewed: the header would no longer be platform-controlled.
+Trust only private and loopback peers (`TrustedNetworks` `10.0.0.0/8`, `TrustedProxies` `127.0.0.1` and `::1`). The container is not reachable from the internet directly, and the application accepts the header only from those peers. After changing this, verify on the live service that a spoofed `CF-Connecting-IP` or `X-Forwarded-For` does not reset the login limit. A spoofed `X-Forwarded-For` should still get 429; Cloudflare answers a caller-supplied `CF-Connecting-IP` with 403 (`error code: 1000`) before it reaches the application. If Render stops fronting services with Cloudflare, this setting must be reviewed: the header would no longer be platform-controlled.
 
 ### Environment variables
 
