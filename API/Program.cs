@@ -744,6 +744,17 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = HealthResponseWriter.WriteAsync
 }).AllowAnonymous();
 
+var deployedCommit = app.Configuration["RENDER_GIT_COMMIT"];
+app.MapGet("/health/version", (HttpContext context) =>
+{
+    // CI polls this during a deploy, so no cache may answer for the application.
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(new
+    {
+        commit = string.IsNullOrWhiteSpace(deployedCommit) ? "unknown" : deployedCommit
+    });
+}).AllowAnonymous();
+
 app.MapControllers();
 
 app.Run();
