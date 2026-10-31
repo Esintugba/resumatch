@@ -430,6 +430,25 @@ public sealed class HttpSecurityOptionsValidatorTests
     }
 
     [Theory]
+    [InlineData("X-Forwarded-For", true)]
+    [InlineData("CF-Connecting-IP", true)]
+    [InlineData("", false)]
+    [InlineData(" ", false)]
+    [InlineData("Bad Header", false)]
+    [InlineData("Bad:Header", false)]
+    [InlineData("Bad\r\nHeader", false)]
+    public void ForwardedForHeaderName_MustBeAValidHeaderName(
+        string headerName,
+        bool expectedValid)
+    {
+        var result = _validator.Validate(
+            null,
+            new HttpSecurityOptions { ForwardedForHeaderName = headerName });
+
+        Assert.Equal(expectedValid, result.Succeeded);
+    }
+
+    [Theory]
     [InlineData(0, false)]
     [InlineData(1, true)]
     [InlineData(5, true)]
