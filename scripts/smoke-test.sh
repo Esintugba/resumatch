@@ -3,7 +3,7 @@
 # docs/operations/staging-smoke-test.md. It creates no data, logs in as nobody
 # and never reaches the extraction provider.
 #
-# Usage: scripts/smoke-test.sh https://resumatch-api.onrender.com
+# Usage: scripts/smoke-test.sh https://resumatch-api-da3z.onrender.com
 set -uo pipefail
 
 base_url="${1:?Usage: smoke-test.sh <base-url>}"

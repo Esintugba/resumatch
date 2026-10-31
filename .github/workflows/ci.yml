@@ -128,14 +128,14 @@ jobs:
       group: production-deploy
       cancel-in-progress: false
     env:
-      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://resumatch-api.onrender.com' }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
       # Design-time host settings only; never used to reach a real service.
       Jwt__Issuer: design-time
       Jwt__Audience: design-time
       Jwt__AccessTokenExpirationMinutes: 60
       ConnectionStrings__DefaultConnection: Host=localhost;Database=design_time;Username=none;Password=none
     steps:
-      - name: Require deployment secrets
+      - name: Require deployment settings
         env:
           NEON_MIGRATION_CONNECTION_STRING: ${{ secrets.NEON_MIGRATION_CONNECTION_STRING }}
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
@@ -147,6 +147,15 @@ jobs:
               missing=1
             fi
           done
+          if ! [[ "$PRODUCTION_URL" =~ ^https://[a-z0-9.-]+$ ]]; then
+            echo "::error::Repository variable PRODUCTION_URL must be an https:// origin without a path or trailing slash."
+            missing=1
+          fi
+          if ! printf '%s' "$NEON_MIGRATION_CONNECTION_STRING" | grep -qiE '(^|;) *ssl ?mode *= *verifyfull *(;|$)'; then
+            echo "::error::NEON_MIGRATION_CONNECTION_STRING must use SSL Mode=VerifyFull."
+            missing=1
+          fi
+          echo "Production URL: $PRODUCTION_URL"
           exit "$missing"
 
       - uses: actions/checkout@v7
@@ -171,6 +180,27 @@ jobs:
           dotnet tool restore
           export Jwt__SecretKey="$(openssl rand -base64 32)"
           dotnet ef migrations bundle --project API --configuration Release --target-runtime linux-x64 --output efbundle --force
+
+      - name: Prove the migration connection validates certificates
+        # A connection that trusts only an unrelated root must be rejected. If
+        # validation were off, the bundle would connect and apply the pending
+        # migrations, as the next step would, and this step then stops the deploy.
+        env:
+          NEON_MIGRATION_CONNECTION_STRING: ${{ secrets.NEON_MIGRATION_CONNECTION_STRING }}
+        run: |
+          export Jwt__SecretKey="$(openssl rand -base64 32)"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=unrelated-root" \
+            -keyout "$RUNNER_TEMP/unrelated.key" -out "$RUNNER_TEMP/unrelated.pem" 2>/dev/null
+          if output=$(timeout 180 ./efbundle --connection "${NEON_MIGRATION_CONNECTION_STRING%;};Root Certificate=$RUNNER_TEMP/unrelated.pem" 2>&1); then
+            echo "::error::The connection succeeded with an unrelated root certificate, so the server certificate is not being validated."
+            exit 1
+          fi
+          if ! printf '%s' "$output" | grep -qi 'remote certificate'; then
+            printf '%s\n' "$output"
+            echo "::error::The connection failed, but not because of certificate validation."
+            exit 1
+          fi
+          echo "Rejected as expected: the server certificate is validated."
 
       - name: Apply migrations
         env:

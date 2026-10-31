@@ -79,7 +79,7 @@ Integration tests live in the `API.Tests.Integration.*` namespace. They start a 
 
 ## What CI checks
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and on manual dispatch. A newer run on the same branch cancels the older one.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and on manual dispatch. A newer run on the same pull request cancels the older one; runs on `main` are never cancelled.
 
 - **build-and-unit-tests**
   - Restores packages and the `dotnet-ef` local tool, then builds in Release with warnings treated as errors.

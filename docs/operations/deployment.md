@@ -44,8 +44,8 @@ Trust only private and loopback peers (`TrustedNetworks` `10.0.0.0/8`, `TrustedP
 | Variable | Example | Required | Secret |
 |---|---|---|---|
 | `ASPNETCORE_ENVIRONMENT` | `Production` | Image default | No |
-| `AllowedHosts` | `resumatch-api.onrender.com` | Yes | No |
-| `ConnectionStrings__DefaultConnection` | `Host=ep-x-pooler.region.aws.neon.tech;Database=neondb;Username=u;Password=p;SSL Mode=Require;No Reset On Close=true;Timeout=30;Command Timeout=30` | Yes | Yes |
+| `AllowedHosts` | `resumatch-api-da3z.onrender.com` | Yes | No |
+| `ConnectionStrings__DefaultConnection` | `Host=ep-x-pooler.region.aws.neon.tech;Database=neondb;Username=u;Password=p;SSL Mode=VerifyFull;No Reset On Close=true;Timeout=30;Command Timeout=30` | Yes | Yes |
 | `Jwt__SecretKey` | Base64 of at least 32 random bytes | Yes | Yes |
 | `HttpSecurity__ForwardedForHeaderName` | `CF-Connecting-IP` | Yes | No |
 | `HttpSecurity__TrustedNetworks__0` | `10.0.0.0/8` | Yes | No |
@@ -71,16 +71,18 @@ The runtime uses Neon's pooled (`-pooler`) host, which runs PgBouncer in transac
 
 Migrations use the direct host, because Neon does not support pooled connections for `dotnet ef` operations.
 
+Both connection strings use `SSL Mode=VerifyFull`. Do not lower this to `Require` to get past a certificate error: `Require` encrypts the connection without proving which server answered.
+
 ### CI deployment
 
-The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs. It builds an EF Core migration bundle, applies it to Neon, calls the Render deploy hook for that commit, waits for the new version, waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
+The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs. It builds an EF Core migration bundle, proves that the migration connection rejects an unrelated root certificate, applies the bundle to Neon, calls the Render deploy hook for that commit, waits for the new version, waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
 
 | GitHub setting | Kind | Required |
 |---|---|---|
-| `NEON_MIGRATION_CONNECTION_STRING` (direct host) | Repository secret | Yes |
+| `NEON_MIGRATION_CONNECTION_STRING` (direct host, `SSL Mode=VerifyFull`) | Repository secret | Yes |
 | `RENDER_DEPLOY_HOOK_URL` | Repository secret | Yes |
-| `RENDER_API_KEY` | Repository secret | Recommended: without it CI cannot tell when the new version is live, waits a fixed 5 minutes, and the smoke test may reach the previous version |
-| `PRODUCTION_URL` | Repository variable | Only if the service is not `https://resumatch-api.onrender.com` |
+| `PRODUCTION_URL` | Repository variable | Yes: the service's `https://` origin, currently `https://resumatch-api-da3z.onrender.com`, without a trailing slash |
+| `RENDER_API_KEY` | Repository secret | No, and deliberately not set: a Render API key reaches every service in the workspace. Without it CI waits a fixed 5 minutes, so the smoke test may reach the previous version |
 
 GitHub environments and environment secrets are unavailable to private repositories on the Free plan, so these are repository secrets. Only the `deploy` job references them. That job runs only for pushes to `main`, and the workflow does not use `pull_request_target`, so pull request runs never receive them.
 
