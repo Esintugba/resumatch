@@ -5,10 +5,12 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0.103 AS build
 WORKDIR /src
 COPY global.json ./
 COPY API/API.csproj API/
-RUN dotnet restore API/API.csproj
+RUN dotnet restore API/API.csproj --runtime linux-x64 /p:PublishReadyToRun=true
 COPY API/ API/
+# ReadyToRun compiles ahead of time, because JIT dominates startup at 0.1 CPU.
 RUN dotnet publish API/API.csproj --configuration Release --no-restore \
-    --output /app /p:UseAppHost=false
+    --runtime linux-x64 --self-contained false --output /app \
+    /p:UseAppHost=false /p:PublishReadyToRun=true
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
