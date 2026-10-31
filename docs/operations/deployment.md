@@ -9,6 +9,8 @@
 
 A readiness failure removes traffic and must not restart the process. Liveness never checks PostgreSQL, schema, provider, budget, circuit, queue, or OTLP. Public health output contains only overall/check status and duration.
 
+`GET /health/version` is an anonymous deployment check, not a probe. It returns `{"commit":"<sha>"}` from `RENDER_GIT_COMMIT`, or `unknown` when that variable is absent, and is sent with `Cache-Control: no-store`.
+
 ## HTTP security settings
 
 Production must override `AllowedHosts` with the explicit public host names (the base `*` makes startup fail) and set the `HttpSecurity` section: `AllowedOrigins` (exact browser origins such as `https://app.example.com`, without path, trailing slash, or default port), `AllowCredentials`, `TrustedProxies`, `TrustedNetworks`, `ForwardLimit`, and the HSTS options (`HstsEnabled` must stay `true`). `appsettings.Production.example.json` shows every field with placeholder values (`example.com` names and RFC 5737 documentation addresses), and a unit test keeps it valid against the options validators. Proxy settings are described in [Reverse proxy and client IP](#reverse-proxy-and-client-ip).
@@ -75,14 +77,15 @@ Both connection strings use `SSL Mode=VerifyFull`. Do not lower this to `Require
 
 ### CI deployment
 
-The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs. It builds an EF Core migration bundle, proves that the migration connection rejects an unrelated root certificate, applies the bundle to Neon, calls the Render deploy hook for that commit, waits for the new version, waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
+The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs. It builds an EF Core migration bundle, proves that the migration connection rejects an unrelated root certificate, applies the bundle to Neon, calls the Render deploy hook for that commit, waits up to 20 minutes for `/health/version` to report that commit (the job fails otherwise), waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
 
 | GitHub setting | Kind | Required |
 |---|---|---|
 | `NEON_MIGRATION_CONNECTION_STRING` (direct host, `SSL Mode=VerifyFull`) | Repository secret | Yes |
 | `RENDER_DEPLOY_HOOK_URL` | Repository secret | Yes |
 | `PRODUCTION_URL` | Repository variable | Yes: the service's `https://` origin, currently `https://resumatch-api-da3z.onrender.com`, without a trailing slash |
-| `RENDER_API_KEY` | Repository secret | No, and deliberately not set: a Render API key reaches every service in the workspace. Without it CI waits a fixed 5 minutes, so the smoke test may reach the previous version |
+
+Render sets `RENDER_GIT_COMMIT` on the service; do not set it by hand. CI deliberately uses no Render API key, because such a key reaches every service in the workspace.
 
 GitHub environments and environment secrets are unavailable to private repositories on the Free plan, so these are repository secrets. Only the `deploy` job references them. That job runs only for pushes to `main`, and the workflow does not use `pull_request_target`, so pull request runs never receive them.
 
