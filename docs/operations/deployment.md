@@ -17,6 +17,73 @@ Production must override `AllowedHosts` with the explicit public host names (the
 
 Behind a load balancer or reverse proxy, `HttpSecurity:TrustedProxies` (exact IPv4 dotted-quad or IPv6 addresses) or `HttpSecurity:TrustedNetworks` (CIDR) is mandatory in production, with `ForwardLimit` matching the number of proxy hops. Forwarded headers are processed only when one of them is set. Without them every request appears to come from the proxy address, so the IP-partitioned login and register rate limits are shared by all users and one client can exhaust them for everyone. The application does not detect this misconfiguration; verify it during the staging smoke test.
 
+## Render + Neon
+
+The free-tier deployment runs the Docker image on a Render web service and uses a Neon PostgreSQL database. Both can change their limits; check [Render free services](https://render.com/docs/free) and [Neon plans](https://neon.com/docs/introduction/plans) before relying on the figures below.
+
+### Platform constraints
+
+- Render free: 512 MB RAM, 0.1 CPU, one instance, 750 instance hours per month. The service spins down after 15 minutes without traffic and takes about a minute to wake. The filesystem is ephemeral, and background work stops while spun down, so queued parse drafts wait for the next request.
+- Neon free: 1 GB storage, 100 CU-hours per month, and a compute that suspends after 5 minutes idle. A background poll keeps the compute awake while the API is running, so a short `PollInterval` or frequent uptime pings consume CU-hours.
+- Keep both in the same region (for example Render Frankfurt with Neon `aws-eu-central-1`).
+
+### Render settings
+
+Runtime Docker, plan Free, Auto-Deploy off (CI triggers deploys after migrations), health check path `/health/live`. Do not use `/health/ready` as the Render health check: it fails when the database is unavailable or the schema differs, Render restarts instances that fail for 60 seconds, and this contract requires that a readiness failure must not restart the process.
+
+The image listens on `PORT`. Do not set `ASPNETCORE_HTTPS_PORT`: Render already redirects HTTP to HTTPS at its edge, and with no HTTPS port the application does not redirect, which rules out a redirect loop. HSTS is sent when a trusted peer reports `X-Forwarded-Proto: https`.
+
+### Client IP on Render
+
+Set `HttpSecurity__ForwardedForHeaderName=CF-Connecting-IP`. All inbound traffic passes through Cloudflare, which overwrites that header with the real client address. Do not use `X-Forwarded-For` here: Cloudflare appends to it, so a caller controls the leftmost entries, and its multi-hop value cannot satisfy header symmetry with a single `X-Forwarded-Proto`. See [Reverse proxy and client IP](#reverse-proxy-and-client-ip) for the general rule.
+
+Trust only private and loopback peers (`TrustedNetworks` `10.0.0.0/8`, `TrustedProxies` `127.0.0.1` and `::1`). The container is not reachable from the internet directly, and the application accepts the header only from those peers. After changing this, verify on the live service that a spoofed `CF-Connecting-IP` or `X-Forwarded-For` does not reset the login limit. If Render stops fronting services with Cloudflare, this setting must be reviewed: the header would no longer be platform-controlled.
+
+### Environment variables
+
+| Variable | Example | Required | Secret |
+|---|---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | `Production` | Image default | No |
+| `AllowedHosts` | `resumatch-api.onrender.com` | Yes | No |
+| `ConnectionStrings__DefaultConnection` | `Host=ep-x-pooler.region.aws.neon.tech;Database=neondb;Username=u;Password=p;SSL Mode=Require;No Reset On Close=true;Timeout=30;Command Timeout=30` | Yes | Yes |
+| `Jwt__SecretKey` | Base64 of at least 32 random bytes | Yes | Yes |
+| `HttpSecurity__ForwardedForHeaderName` | `CF-Connecting-IP` | Yes | No |
+| `HttpSecurity__TrustedNetworks__0` | `10.0.0.0/8` | Yes | No |
+| `HttpSecurity__TrustedProxies__0` / `__1` | `127.0.0.1` / `::1` | Yes | No |
+| `HttpSecurity__AllowedOrigins__0` | `https://app.example.com` | Only with a browser client | No |
+| `JobDescriptionExtraction__Provider` | `OpenAI` (default `Unavailable`) | To enable parsing | No |
+| `JobDescriptionExtraction__ApiKey` | Provider key | With OpenAI | Yes |
+| `JobDescriptionExtraction__Model` | Dated model snapshot | With OpenAI | No |
+| `JobDescriptionExtraction__RequirePinnedModel`, `__ModelIsPinned` | `true` | With provider execution | No |
+| `JobPostingParseDrafts__WorkerEnabled`, `__ProviderExecutionEnabled` | `true` | To enable parsing | No |
+| `JobPostingParseDrafts__PollInterval` | `00:00:30` | Recommended | No |
+| `AiUsageBudget__Enabled`, `__Reconciliation__Enabled` | `true` | With provider execution | No |
+| `AiUsageBudget__User__DailyRequestLimit` / `__DailyTokenLimit` | `5` / `100000` | With provider execution | No |
+| `AiUsageBudget__User__MonthlyRequestLimit` / `__MonthlyTokenLimit` | `50` / `1000000` | With provider execution | No |
+| `AiUsageBudget__System__DailyRequestLimit` / `__DailyTokenLimit` | `20` / `400000` | With provider execution | No |
+| `AiUsageBudget__System__MonthlyRequestLimit` / `__MonthlyTokenLimit` | `200` / `4000000` | With provider execution | No |
+
+Each parse reserves about 16,096 tokens (`EstimatedInputTokens` 12,000 + `MaximumOutputTokens` 4,096), so these limits allow about 6 parses per user per day. Budget tokens are only a safety net; also set a hard spending limit in the OpenAI account.
+
+### Connection strings
+
+The runtime uses Neon's pooled (`-pooler`) host, which runs PgBouncer in transaction mode. `No Reset On Close=true` is required by Npgsql with PgBouncer in transaction mode. The application uses only transaction-scoped features (`SET TRANSACTION`, `pg_advisory_xact_lock`), Npgsql multiplexing is off by default, and protocol-level prepared statements are supported by Neon's pooler. `Timeout=30` leaves room for a suspended compute to wake.
+
+Migrations use the direct host, because Neon does not support pooled connections for `dotnet ef` operations.
+
+### CI deployment
+
+The `deploy` job in `.github/workflows/ci.yml` runs on pushes to `main` after both test jobs and uses the GitHub `production` environment. It builds an EF Core migration bundle, applies it to Neon, calls the Render deploy hook for that commit, waits for the new version, waits for `/health/ready`, and runs `scripts/smoke-test.sh`, which is read-only and never calls the extraction provider.
+
+| GitHub setting | Kind | Required |
+|---|---|---|
+| `NEON_MIGRATION_CONNECTION_STRING` (direct host) | Environment secret | Yes |
+| `RENDER_DEPLOY_HOOK_URL` | Environment secret | Yes |
+| `RENDER_API_KEY` | Environment secret | Recommended: without it CI cannot tell when the new version is live, waits a fixed 5 minutes, and the smoke test may reach the previous version |
+| `PRODUCTION_URL` | Environment variable | Only if the service is not `https://resumatch-api.onrender.com` |
+
+Migrations run before the new version starts, so they must stay backward compatible with the running version (see below).
+
 ## Expand, deploy, verify
 
 1. Verify backup restoration capability and inspect migration SQL in CI.
