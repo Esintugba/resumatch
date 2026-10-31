@@ -43,6 +43,7 @@ public sealed class RateLimitPolicyResolverTests
     [InlineData("/api/job-postings/0b6f3c61-2c1f-4d43-9a43-6c2f0f6f3a10/parse-drafts")]
     [InlineData("/api/job-postings/0b6f3c61-2c1f-4d43-9a43-6c2f0f6f3a10/parsex")]
     [InlineData("/health/live")]
+    [InlineData("/health/version")]
     [InlineData("/other/api/auth/login")]
     public void UnrelatedPaths_FallBackToUnknown(string path)
     {

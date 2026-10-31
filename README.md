@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/Esintugba/resumatch/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Esintugba/resumatch/actions/workflows/ci.yml)
 
+**Live API:** <https://resumatch-api-da3z.onrender.com> (free tier: the first request after 15 idle minutes takes about 40 seconds; check [`/health/ready`](https://resumatch-api-da3z.onrender.com/health/ready))
+
 ResuMatch is an ASP.NET Core Web API for ATS-oriented resume analysis and job posting matching. Users manage structured resumes (contact, experience, education, projects, skills, languages, certifications, links) and job postings, run a deterministic rule-based ATS analysis (`ats-v1`) with optional job-match scoring and recommendations, and track job applications. Job descriptions can be parsed into skill drafts by an optional OpenAI-backed background worker protected by budgets, rate limits, distributed concurrency, and a circuit breaker.
 
 ## Requirements
@@ -77,7 +79,7 @@ Integration tests live in the `API.Tests.Integration.*` namespace. They start a 
 
 ## What CI checks
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and on manual dispatch. A newer run on the same branch cancels the older one.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and on manual dispatch. A newer run on the same pull request cancels the older one; runs on `main` are never cancelled.
 
 - **build-and-unit-tests**
   - Restores packages and the `dotnet-ef` local tool, then builds in Release with warnings treated as errors.
@@ -86,7 +88,9 @@ Integration tests live in the `API.Tests.Integration.*` namespace. They start a 
   - Fails if any direct or transitive package has a known vulnerability.
 - **integration-tests**: runs after the first job and executes the integration tests against PostgreSQL in Docker (Testcontainers).
 
-Both jobs upload their `.trx` results as artifacts, even when tests fail. CI needs no repository secrets: tests use built-in test keys and fake providers. Dependabot proposes weekly NuGet and GitHub Actions updates, grouping the Microsoft and EF Core packages into one PR.
+- **deploy**: on pushes to `main` only, after both jobs pass. Applies migrations to Neon, deploys to Render, and runs a read-only smoke test. See [Render + Neon](docs/operations/deployment.md#render--neon).
+
+Both test jobs upload their `.trx` results as artifacts, even when tests fail. The test jobs need no secrets: tests use built-in test keys and fake providers. Dependabot proposes weekly NuGet and GitHub Actions updates, grouping the Microsoft and EF Core packages into one PR.
 
 ## Project structure
 

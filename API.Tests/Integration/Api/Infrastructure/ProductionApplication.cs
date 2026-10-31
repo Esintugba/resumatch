@@ -1,5 +1,6 @@
 using API.Tests.Integration.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace API.Tests.Integration.Api.Infrastructure;
 
@@ -14,7 +15,8 @@ public static class ProductionApplication
 
     public static ResuMatchWebApplicationFactory Create(
         PostgreSqlFixture fixture,
-        IReadOnlyDictionary<string, string?>? configurationOverrides = null)
+        IReadOnlyDictionary<string, string?>? configurationOverrides = null,
+        Action<IServiceCollection>? configureTestServices = null)
     {
         var overrides = new Dictionary<string, string?>(
             configurationOverrides ?? new Dictionary<string, string?>())
@@ -25,13 +27,16 @@ public static class ProductionApplication
         return new ResuMatchWebApplicationFactory(
             fixture,
             overrides,
+            configureTestServices: configureTestServices,
             environmentName: "Production");
     }
 
-    public static HttpClient CreateClient(ResuMatchWebApplicationFactory application) =>
+    public static HttpClient CreateClient(
+        ResuMatchWebApplicationFactory application,
+        string scheme = "https") =>
         application.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
-            BaseAddress = new Uri($"https://{AllowedHost}")
+            BaseAddress = new Uri($"{scheme}://{AllowedHost}")
         });
 }
