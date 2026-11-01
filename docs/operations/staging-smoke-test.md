@@ -4,6 +4,7 @@ Run after schema migration and before production expansion. Record outcomes with
 
 - [ ] `/health/live` returns 200 independently of external dependencies.
 - [ ] `/health/ready` returns 200 and lists healthy `database`, `schema`, `configuration`, and `job-parser` checks.
+- [ ] `/health/version` reports the deployed commit, not `unknown`.
 - [ ] JWT authentication accepts a valid token and rejects missing/invalid tokens.
 - [ ] Parse request creates a draft and respects ownership, ETag, cooldown, and rate limiting.
 - [ ] Worker claims with lease fencing and transitions through provider execution to Ready.

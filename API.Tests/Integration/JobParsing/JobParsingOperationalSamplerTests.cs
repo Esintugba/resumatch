@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using Api.Application.JobParsing.Diagnostics;
 using Api.Application.JobParsing.Engine.Preprocessing;
@@ -24,7 +25,7 @@ public sealed class JobParsingOperationalSamplerTests(PostgreSqlFixture fixture)
     {
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await SeedQueuesAsync(cancellation.Token);
-        var measurements = new List<MetricMeasurement>();
+        var measurements = new ConcurrentQueue<MetricMeasurement>();
         using var listener = CreateListener(measurements);
         await using var provider = CreateServices();
         var sampler = new JobParsingOperationalSampler(
@@ -129,7 +130,7 @@ public sealed class JobParsingOperationalSamplerTests(PostgreSqlFixture fixture)
     }
 
     private static MeterListener CreateListener(
-        ICollection<MetricMeasurement> measurements)
+        ConcurrentQueue<MetricMeasurement> measurements)
     {
         var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -140,12 +141,12 @@ public sealed class JobParsingOperationalSamplerTests(PostgreSqlFixture fixture)
             }
         };
         listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
-            measurements.Add(new(
+            measurements.Enqueue(new(
                 instrument.Name,
                 value,
                 tags.ToArray().Select(item => $"{item.Key}={item.Value}").ToArray())));
         listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) =>
-            measurements.Add(new(
+            measurements.Enqueue(new(
                 instrument.Name,
                 value,
                 tags.ToArray().Select(item => $"{item.Key}={item.Value}").ToArray())));

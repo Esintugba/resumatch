@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using Api.Application.JobParsing;
 using Api.Application.JobParsing.Diagnostics;
@@ -170,7 +171,7 @@ public sealed class AiProviderProtectionServiceTests : IntegrationTestBase
     [Fact]
     public async Task QualifyingFailure_EmitsCircuitOpenedMetric()
     {
-        var values = new List<long>();
+        var values = new ConcurrentQueue<long>();
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
@@ -181,7 +182,7 @@ public sealed class AiProviderProtectionServiceTests : IntegrationTestBase
             }
         };
         listener.SetMeasurementEventCallback<long>((_, value, _, _) =>
-            values.Add(value));
+            values.Enqueue(value));
         listener.Start();
         var clock = new MutableTimeProvider(Now);
         await using var context = Fixture.DbContextFactory.CreateDbContext();

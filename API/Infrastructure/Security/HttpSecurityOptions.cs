@@ -12,6 +12,8 @@ public sealed class HttpSecurityOptions
     public bool AllowCredentials { get; init; }
     public string[] TrustedProxies { get; init; } = [];
     public string[] TrustedNetworks { get; init; } = [];
+    public string ForwardedForHeaderName { get; init; } =
+        Microsoft.AspNetCore.HttpOverrides.ForwardedHeadersDefaults.XForwardedForHeaderName;
     public int ForwardLimit { get; init; } = 1;
     public bool HstsEnabled { get; init; } = true;
     public TimeSpan HstsMaxAge { get; init; } = TimeSpan.FromDays(30);
@@ -107,6 +109,12 @@ public sealed class HttpSecurityOptionsValidator :
         }
 
         failures.AddRange(hostBitFailures);
+
+        if (!IsHeaderName(options.ForwardedForHeaderName))
+        {
+            failures.Add(
+                "ForwardedForHeaderName must be a valid HTTP header name.");
+        }
 
         if (options.ForwardLimit is < 1 or > 5)
         {
@@ -225,6 +233,11 @@ public sealed class HttpSecurityOptionsValidator :
 
         return new IPAddress(bytes);
     }
+
+    private static bool IsHeaderName(string? value) =>
+        value is { Length: > 0 and <= 64 } &&
+        value.All(character =>
+            char.IsAsciiLetterOrDigit(character) || character == '-');
 
     private static bool HasExplicitDefaultPort(string value, Uri uri)
     {
