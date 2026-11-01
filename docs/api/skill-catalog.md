@@ -21,6 +21,15 @@ A ready parse draft stores a hash of the whole catalog. Adding, renaming or reca
 
 Stored analyses are not affected. Their hash covers only the skills of the job posting they used.
 
+## Job posting skills
+
+With parsing off, job match scores depend on skills added by hand:
+
+- `POST /api/job-postings/{id}/skills` adds a catalog skill with `skillId`, `requirementType` (default `Required`) and `importanceScore` from 0 to 100 (default 50).
+- `DELETE /api/job-postings/{id}/skills/{skillId}` removes a skill that was added by hand.
+
+Both need the current job posting `ETag` in `If-Match` and return the updated job posting with a new `ETag`. A job posting holds at most 50 skills. Rows that came from AI parsing keep their provenance: they cannot be overwritten by adding the same skill, and they cannot be removed here.
+
 ## Unlisted skills note
 
 `unlistedSkillsNote` on a resume holds skills that are not in the catalog. It is plain text of up to 500 characters and is part of the resume, so it follows the resume `ETag`. It is not used by analysis or matching and never adds to the catalog. Clients must render it as text.

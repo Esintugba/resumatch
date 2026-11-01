@@ -31,5 +31,6 @@ public static class ApiErrorCodes
     public const string ParseDraftStateInvalid = "parse_draft_state_invalid";
     public const string ParseDraftOutdated = "parse_draft_outdated";
     public const string SkillProvenanceLocked = "skill_provenance_locked";
+    public const string JobPostingSkillLimitReached = "job_posting_skill_limit_reached";
     public const string ParseCooldown = "parse_cooldown";
 }

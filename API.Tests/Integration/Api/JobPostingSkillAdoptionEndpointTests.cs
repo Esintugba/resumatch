@@ -65,6 +65,59 @@ public sealed class JobPostingSkillAdoptionEndpointTests : ApiIntegrationTestBas
         Assert.Equal(seed.Requirement.ImportanceScore, persisted.ImportanceScore);
     }
 
+    [Theory]
+    [InlineData(JobPostingSkillProvenanceStatus.AiActive)]
+    [InlineData(JobPostingSkillProvenanceStatus.AiStale)]
+    [InlineData(JobPostingSkillProvenanceStatus.AiManuallyAdopted)]
+    public async Task Ai_skill_keeps_its_provenance_when_removed_or_added_by_hand(
+        JobPostingSkillProvenanceStatus status)
+    {
+        using var cancellation = CreateCancellation();
+        var seed = await SeedAsync(status, cancellation.Token);
+        using var client = CreateClient(seed.User);
+        var etag = EntityTagCodec.Format(seed.Posting.Version);
+
+        using var removeRequest = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/api/job-postings/{seed.Posting.Id:D}/skills/{seed.Requirement.SkillId:D}");
+        removeRequest.Headers.TryAddWithoutValidation("If-Match", etag);
+        using var removed = await client.SendAsync(removeRequest, cancellation.Token);
+        using var addRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/job-postings/{seed.Posting.Id:D}/skills")
+        {
+            Content = JsonContent.Create(new
+            {
+                skillId = seed.Requirement.SkillId,
+                requirementType = "Mentioned",
+                importanceScore = 1
+            })
+        };
+        addRequest.Headers.TryAddWithoutValidation("If-Match", etag);
+        using var added = await client.SendAsync(addRequest, cancellation.Token);
+
+        Assert.Equal(HttpStatusCode.Conflict, removed.StatusCode);
+        Assert.Contains(
+            "skill_provenance_locked",
+            await removed.Content.ReadAsStringAsync(cancellation.Token),
+            StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Conflict, added.StatusCode);
+        Assert.Contains(
+            "duplicate_skill",
+            await added.Content.ReadAsStringAsync(cancellation.Token),
+            StringComparison.Ordinal);
+        await using var verification = Fixture.DbContextFactory.CreateDbContext();
+        var persisted = await verification.JobPostingSkills
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == seed.Requirement.Id, cancellation.Token);
+        Assert.Equal(status, persisted.ProvenanceStatus);
+        Assert.True(persisted.IsAiDetected);
+        Assert.Equal(seed.Draft!.Id, persisted.SourceParseDraftId);
+        Assert.Equal(seed.Candidate!.Id, persisted.SourceParseDraftSkillId);
+        Assert.Equal(seed.Requirement.RequirementType, persisted.RequirementType);
+        Assert.Equal(seed.Requirement.ImportanceScore, persisted.ImportanceScore);
+    }
+
     [Fact]
     public async Task Ai_stale_skill_can_be_adopted_and_clears_invalidation_time()
     {

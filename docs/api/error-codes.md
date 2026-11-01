@@ -46,7 +46,7 @@ All have status 409 unless noted.
 |---|---|
 | `registration_rejected` | Registration could not be completed. The message does not say why, so that it does not reveal whether an email is registered. |
 | `section_limit_reached` | A resume section reached its maximum item count. |
-| `duplicate_skill` | The skill is already on the resume, project or job posting. |
+| `duplicate_skill` | The skill is already on the resume, project or job posting. An existing row is never changed. |
 | `duplicate_language` | The language is already on the resume. |
 | `duplicate_application` | An application already exists for this job posting. |
 | `reference_conflict` | A referenced job posting or resume is no longer valid for this user. |
@@ -54,7 +54,8 @@ All have status 409 unless noted.
 | `invalid_status_transition` | The application cannot move to the requested status. |
 | `parse_draft_state_invalid` | The parse draft status does not allow this operation, or it has expired. |
 | `parse_draft_outdated` | The parse draft no longer matches the current data. Request a new parse. |
-| `skill_provenance_locked` | The source of this job posting skill does not allow manual adoption. |
+| `skill_provenance_locked` | The source of this job posting skill does not allow the operation. It cannot be adopted, or it came from AI parsing and cannot be removed by hand. |
+| `job_posting_skill_limit_reached` | The job posting has the maximum of 50 skills. |
 | `parse_cooldown` | Status 429. The same content was parsed recently. See `Retry-After`. |
 
 ## Validation errors
