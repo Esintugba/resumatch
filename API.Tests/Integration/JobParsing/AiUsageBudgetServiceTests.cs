@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using Api.Application.JobParsing.Diagnostics;
 using Api.Application.JobParsing.Budget;
@@ -56,7 +57,7 @@ public sealed class AiUsageBudgetServiceTests : IntegrationTestBase
     [Fact]
     public async Task ReserveAsync_DenialMetricUsesOnlyBoundedScopeTag()
     {
-        var measurements = new List<(long Value, string[] Tags)>();
+        var measurements = new ConcurrentQueue<(long Value, string[] Tags)>();
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
@@ -67,7 +68,7 @@ public sealed class AiUsageBudgetServiceTests : IntegrationTestBase
             }
         };
         listener.SetMeasurementEventCallback<long>((_, value, tags, _) =>
-            measurements.Add((
+            measurements.Enqueue((
                 value,
                 tags.ToArray().Select(item => $"{item.Key}={item.Value}").ToArray())));
         listener.Start();
