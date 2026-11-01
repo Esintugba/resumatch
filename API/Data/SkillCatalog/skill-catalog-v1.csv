@@ -1,0 +1,401 @@
+Name,Category,NameTr
+C,ProgrammingLanguage,
+C#,ProgrammingLanguage,
+C++,ProgrammingLanguage,
+Dart,ProgrammingLanguage,
+Elixir,ProgrammingLanguage,
+Erlang,ProgrammingLanguage,
+F#,ProgrammingLanguage,
+Go,ProgrammingLanguage,
+Groovy,ProgrammingLanguage,
+Haskell,ProgrammingLanguage,
+Java,ProgrammingLanguage,
+JavaScript,ProgrammingLanguage,
+Julia,ProgrammingLanguage,
+Kotlin,ProgrammingLanguage,
+Lua,ProgrammingLanguage,
+MATLAB,ProgrammingLanguage,
+Objective-C,ProgrammingLanguage,
+Perl,ProgrammingLanguage,
+PHP,ProgrammingLanguage,
+PowerShell,ProgrammingLanguage,
+Python,ProgrammingLanguage,
+R,ProgrammingLanguage,
+Ruby,ProgrammingLanguage,
+Rust,ProgrammingLanguage,
+Scala,ProgrammingLanguage,
+Shell Scripting,ProgrammingLanguage,Kabuk betikleme
+Solidity,ProgrammingLanguage,
+SQL,ProgrammingLanguage,
+Swift,ProgrammingLanguage,
+TypeScript,ProgrammingLanguage,
+Angular,Frontend,
+Astro,Frontend,
+Blazor,Frontend,
+Bootstrap,Frontend,
+Chakra UI,Frontend,
+CSS,Frontend,
+Ember.js,Frontend,
+Flutter,Frontend,
+Gatsby,Frontend,
+HTML,Frontend,
+Ionic,Frontend,
+Jetpack Compose,Frontend,
+jQuery,Frontend,
+Material UI,Frontend,
+Next.js,Frontend,
+Nuxt,Frontend,
+Pinia,Frontend,
+React,Frontend,
+React Native,Frontend,
+Redux,Frontend,
+Remix,Frontend,
+Responsive Design,Frontend,Duyarlı tasarım
+RxJS,Frontend,
+Sass,Frontend,
+shadcn/ui,Frontend,
+SolidJS,Frontend,
+Storybook,Frontend,
+Styled Components,Frontend,
+Svelte,Frontend,
+SvelteKit,Frontend,
+SwiftUI,Frontend,
+Tailwind CSS,Frontend,
+TanStack Query,Frontend,
+UIKit,Frontend,
+Vite,Frontend,
+Vue.js,Frontend,
+Web Accessibility,Frontend,Web erişilebilirliği
+WebAssembly,Frontend,
+Webpack,Frontend,
+Zustand,Frontend,
+.NET,Backend,
+Actix Web,Backend,
+Apollo GraphQL,Backend,
+ASP.NET Core,Backend,
+ASP.NET MVC,Backend,
+AutoMapper,Backend,
+Celery,Backend,
+Dapper,Backend,
+Deno,Backend,
+Django,Backend,
+Drizzle ORM,Backend,
+Entity Framework Core,Backend,
+Express,Backend,
+FastAPI,Backend,
+Fastify,Backend,
+Fiber,Backend,
+Flask,Backend,
+Gin,Backend,
+GraphQL,Backend,
+gRPC,Backend,
+Hangfire,Backend,
+Hibernate,Backend,
+JWT,Backend,
+Keycloak,Backend,
+Laravel,Backend,
+MediatR,Backend,
+Micronaut,Backend,
+NestJS,Backend,
+Node.js,Backend,
+OAuth 2.0,Backend,
+OpenAPI,Backend,
+OpenID Connect,Backend,
+Phoenix,Backend,
+Prisma,Backend,
+Pydantic,Backend,
+Quarkus,Backend,
+REST API,Backend,
+Ruby on Rails,Backend,
+Sequelize,Backend,
+SignalR,Backend,
+Sinatra,Backend,
+SOAP,Backend,
+Socket.IO,Backend,
+Spring Boot,Backend,
+Spring Framework,Backend,
+SQLAlchemy,Backend,
+Symfony,Backend,
+tRPC,Backend,
+TypeORM,Backend,
+WebSocket,Backend,
+Amazon Redshift,Database,
+BigQuery,Database,
+Cassandra,Database,
+ClickHouse,Database,
+CockroachDB,Database,
+Couchbase,Database,
+Data Modeling,Database,Veri modelleme
+Database Design,Database,Veritabanı tasarımı
+Databricks,Database,
+DynamoDB,Database,
+Elasticsearch,Database,
+Firebase Firestore,Database,
+InfluxDB,Database,
+MariaDB,Database,
+Memcached,Database,
+Microsoft SQL Server,Database,
+MongoDB,Database,
+MySQL,Database,
+Neo4j,Database,
+OpenSearch,Database,
+Oracle Database,Database,
+PL/SQL,Database,
+PostgreSQL,Database,
+Query Optimization,Database,Sorgu optimizasyonu
+Redis,Database,
+Snowflake,Database,
+SQLite,Database,
+Supabase,Database,
+T-SQL,Database,
+TimescaleDB,Database,
+Ansible,DevOps,
+Apache HTTP Server,DevOps,
+Argo CD,DevOps,
+Azure DevOps,DevOps,
+Bash,DevOps,
+Chef,DevOps,
+CI/CD,DevOps,
+CircleCI,DevOps,
+Datadog,DevOps,
+Docker,DevOps,
+ELK Stack,DevOps,
+Envoy,DevOps,
+Flux CD,DevOps,
+GitHub Actions,DevOps,
+GitLab CI/CD,DevOps,
+GitOps,DevOps,
+Grafana,DevOps,
+HAProxy,DevOps,
+Harbor,DevOps,
+HashiCorp Vault,DevOps,
+Helm,DevOps,
+Incident Management,DevOps,Olay yönetimi
+Infrastructure as Code,DevOps,Kod olarak altyapı
+Istio,DevOps,
+Jenkins,DevOps,
+Kubernetes,DevOps,
+Linkerd,DevOps,
+Linux,DevOps,
+New Relic,DevOps,
+Nexus Repository,DevOps,
+Nginx,DevOps,
+Observability,DevOps,Gözlemlenebilirlik
+OpenTelemetry,DevOps,
+Packer,DevOps,
+Podman,DevOps,
+Prometheus,DevOps,
+Pulumi,DevOps,
+Puppet,DevOps,
+Sentry,DevOps,
+Site Reliability Engineering,DevOps,Site güvenilirliği mühendisliği
+SonarQube,DevOps,
+Splunk,DevOps,
+Terraform,DevOps,
+Traefik,DevOps,
+Vagrant,DevOps,
+Alibaba Cloud,Cloud,
+Amazon EC2,Cloud,
+Amazon ECS,Cloud,
+Amazon EKS,Cloud,
+Amazon RDS,Cloud,
+Amazon S3,Cloud,
+Amazon SNS,Cloud,
+Amazon SQS,Cloud,
+AWS,Cloud,
+AWS CDK,Cloud,
+AWS CloudFormation,Cloud,
+AWS IAM,Cloud,
+AWS Lambda,Cloud,
+Azure App Service,Cloud,
+Azure Functions,Cloud,
+Azure Kubernetes Service,Cloud,
+Azure Service Bus,Cloud,
+Azure SQL Database,Cloud,
+Cloud Cost Optimization,Cloud,Bulut maliyet optimizasyonu
+Cloud Run,Cloud,
+Cloud Security,Cloud,Bulut güvenliği
+Cloudflare,Cloud,
+DigitalOcean,Cloud,
+Firebase,Cloud,
+Google Cloud,Cloud,
+Google Cloud Functions,Cloud,
+Google Kubernetes Engine,Cloud,
+Heroku,Cloud,
+IBM Cloud,Cloud,
+Microsoft Azure,Cloud,
+Netlify,Cloud,
+Oracle Cloud,Cloud,
+Render,Cloud,
+Serverless Computing,Cloud,Sunucusuz bilişim
+Vercel,Cloud,
+Appium,Testing,
+Behavior-Driven Development,Testing,Davranış odaklı geliştirme
+Cucumber,Testing,
+Cypress,Testing,
+End-to-End Testing,Testing,Uçtan uca test
+Gatling,Testing,
+Integration Testing,Testing,Entegrasyon testi
+Jest,Testing,
+JMeter,Testing,
+JUnit,Testing,
+k6,Testing,
+Mocha,Testing,
+MSTest,Testing,
+NUnit,Testing,
+Performance Testing,Testing,Performans testi
+Playwright,Testing,
+Postman,Testing,
+pytest,Testing,
+Selenium,Testing,
+Test-Driven Development,Testing,Teste dayalı geliştirme
+Testcontainers,Testing,
+TestNG,Testing,
+Unit Testing,Testing,Birim testi
+Vitest,Testing,
+xUnit,Testing,
+API Design,Architecture,API tasarımı
+API Gateway,Architecture,
+Apache Kafka,Architecture,
+Caching Strategies,Architecture,Önbellekleme stratejileri
+Clean Architecture,Architecture,Temiz mimari
+CQRS,Architecture,
+Design Patterns,Architecture,Tasarım kalıpları
+Distributed Systems,Architecture,Dağıtık sistemler
+Domain-Driven Design,Architecture,Alan odaklı tasarım
+Event Sourcing,Architecture,Olay kaynaklama
+Event-Driven Architecture,Architecture,Olay güdümlü mimari
+Functional Programming,Architecture,Fonksiyonel programlama
+Hexagonal Architecture,Architecture,Altıgen mimari
+High Availability,Architecture,Yüksek erişilebilirlik
+Load Balancing,Architecture,Yük dengeleme
+Message Queues,Architecture,Mesaj kuyrukları
+Microservices,Architecture,Mikroservisler
+Modular Monolith,Architecture,Modüler monolit
+Object-Oriented Programming,Architecture,Nesne yönelimli programlama
+RabbitMQ,Architecture,
+Scalability,Architecture,Ölçeklenebilirlik
+Service Mesh,Architecture,Servis ağı
+SOLID Principles,Architecture,SOLID ilkeleri
+System Design,Architecture,Sistem tasarımı
+Web Performance,Architecture,Web performansı
+Adobe Illustrator,Tool,
+Adobe Photoshop,Tool,
+Adobe XD,Tool,
+Android Studio,Tool,
+Apache Airflow,Tool,
+Asana,Tool,
+Bitbucket,Tool,
+Confluence,Tool,
+DBeaver,Tool,
+Eclipse,Tool,
+Figma,Tool,
+Git,Tool,
+GitHub,Tool,
+GitLab,Tool,
+Google Sheets,Tool,
+Gradle,Tool,
+Homebrew,Tool,
+Insomnia,Tool,
+IntelliJ IDEA,Tool,
+Jira,Tool,
+Linear,Tool,
+Looker,Tool,
+Maven,Tool,
+Microsoft Excel,Tool,
+Microsoft Project,Tool,
+Microsoft Teams,Tool,
+Miro,Tool,
+Notion,Tool,
+npm,Tool,
+NuGet,Tool,
+pgAdmin,Tool,
+pip,Tool,
+pnpm,Tool,
+Poetry,Tool,
+Power BI,Tool,
+Rider,Tool,
+Salesforce,Tool,
+SAP,Tool,
+ServiceNow,Tool,
+Sketch,Tool,
+Slack,Tool,
+Tableau,Tool,
+Trello,Tool,
+Vim,Tool,
+Visual Studio,Tool,
+Visual Studio Code,Tool,
+Xcode,Tool,
+Yarn,Tool,
+Zapier,Tool,
+Zendesk,Tool,
+Active Listening,SoftSkill,Aktif dinleme
+Adaptability,SoftSkill,Uyum sağlama
+Analytical Thinking,SoftSkill,Analitik düşünme
+Attention to Detail,SoftSkill,Detaylara dikkat
+Coaching,SoftSkill,Koçluk
+Collaboration,SoftSkill,İş birliği
+Communication,SoftSkill,İletişim
+Conflict Resolution,SoftSkill,Çatışma çözme
+Creativity,SoftSkill,Yaratıcılık
+Critical Thinking,SoftSkill,Eleştirel düşünme
+Cross-Functional Collaboration,SoftSkill,Fonksiyonlar arası iş birliği
+Customer Focus,SoftSkill,Müşteri odaklılık
+Decision Making,SoftSkill,Karar verme
+Emotional Intelligence,SoftSkill,Duygusal zekâ
+Empathy,SoftSkill,Empati
+Flexibility,SoftSkill,Esneklik
+Giving Feedback,SoftSkill,Geri bildirim verme
+Initiative,SoftSkill,İnisiyatif alma
+Innovation,SoftSkill,Yenilikçilik
+Intercultural Communication,SoftSkill,Kültürlerarası iletişim
+Leadership,SoftSkill,Liderlik
+Mentoring,SoftSkill,Mentorluk
+Multitasking,SoftSkill,Çoklu görev yönetimi
+Negotiation,SoftSkill,Müzakere
+Organizational Skills,SoftSkill,Organizasyon becerileri
+Presentation Skills,SoftSkill,Sunum becerileri
+Prioritization,SoftSkill,Önceliklendirme
+Problem Solving,SoftSkill,Problem çözme
+Public Speaking,SoftSkill,Topluluk önünde konuşma
+Remote Work,SoftSkill,Uzaktan çalışma
+Resilience,SoftSkill,Dayanıklılık
+Responsibility,SoftSkill,Sorumluluk
+Self-Motivation,SoftSkill,Öz motivasyon
+Stakeholder Management,SoftSkill,Paydaş yönetimi
+Strategic Thinking,SoftSkill,Stratejik düşünme
+Team Management,SoftSkill,Ekip yönetimi
+Teamwork,SoftSkill,Takım çalışması
+Time Management,SoftSkill,Zaman yönetimi
+Work Ethic,SoftSkill,İş ahlakı
+Written Communication,SoftSkill,Yazılı iletişim
+Agile,Other,Çevik yöntemler
+Blockchain,Other,Blok zincir
+Business Analysis,Other,İş analizi
+Code Review,Other,Kod incelemesi
+Computer Vision,Other,Bilgisayarlı görü
+Cybersecurity,Other,Siber güvenlik
+Data Analysis,Other,Veri analizi
+Data Engineering,Other,Veri mühendisliği
+Data Visualization,Other,Veri görselleştirme
+Deep Learning,Other,Derin öğrenme
+Digital Marketing,Other,Dijital pazarlama
+Embedded Systems,Other,Gömülü sistemler
+Game Development,Other,Oyun geliştirme
+Kanban,Other,
+Machine Learning,Other,Makine öğrenmesi
+Mobile Development,Other,Mobil geliştirme
+Natural Language Processing,Other,Doğal dil işleme
+Network Administration,Other,Ağ yönetimi
+Pandas,Other,
+Penetration Testing,Other,Sızma testi
+Product Management,Other,Ürün yönetimi
+Project Management,Other,Proje yönetimi
+PyTorch,Other,
+Requirements Analysis,Other,Gereksinim analizi
+Scrum,Other,
+Search Engine Optimization,Other,Arama motoru optimizasyonu
+Technical Writing,Other,Teknik yazarlık
+TensorFlow,Other,
+UI Design,Other,Arayüz tasarımı
+UX Design,Other,Kullanıcı deneyimi tasarımı

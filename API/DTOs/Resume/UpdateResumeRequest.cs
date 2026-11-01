@@ -14,6 +14,9 @@ public sealed class UpdateResumeRequest
     [StringLength(3000)]
     public string? Summary { get; init; }
 
+    [StringLength(500)]
+    public string? UnlistedSkillsNote { get; init; }
+
     [StringLength(100)]
     public string? TemplateKey { get; init; }
 

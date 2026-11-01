@@ -114,6 +114,7 @@ docs/operations/    Production operations documentation
 ## Operations documentation
 
 - [API error codes](docs/api/error-codes.md): stable error codes and the enum contract
+- [Skill catalog](docs/api/skill-catalog.md): catalog source, search behavior and the unlisted skills note
 - [Deployment contract](docs/operations/deployment.md): probes, migrations, canary, rollback, HTTP security and proxy settings
 - [Runbooks](docs/operations/runbooks.md)
 - [SLOs](docs/operations/slo.md)

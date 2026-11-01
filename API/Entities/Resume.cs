@@ -9,6 +9,7 @@ public class Resume : BaseEntity
     public string Title { get; set; } = string.Empty;
     public string? ProfessionalTitle { get; set; }
     public string? Summary { get; set; }
+    public string? UnlistedSkillsNote { get; set; }
 
     public bool IsMasterResume { get; set; }
     public bool IsArchived { get; set; }

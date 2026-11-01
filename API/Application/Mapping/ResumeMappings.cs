@@ -15,6 +15,7 @@ public static class ResumeMappings
             Title = request.Title,
             ProfessionalTitle = request.ProfessionalTitle,
             Summary = request.Summary,
+            UnlistedSkillsNote = request.UnlistedSkillsNote,
             IsMasterResume = request.IsMasterResume,
             SourceResumeId = request.SourceResumeId,
             TemplateKey = request.TemplateKey,
@@ -34,6 +35,7 @@ public static class ResumeMappings
         resume.Title = request.Title;
         resume.ProfessionalTitle = request.ProfessionalTitle;
         resume.Summary = request.Summary;
+        resume.UnlistedSkillsNote = request.UnlistedSkillsNote;
         resume.TemplateKey = request.TemplateKey;
         resume.TargetRole = request.TargetRole;
     }
@@ -49,6 +51,7 @@ public static class ResumeMappings
             Title = resume.Title,
             ProfessionalTitle = resume.ProfessionalTitle,
             Summary = resume.Summary,
+            UnlistedSkillsNote = resume.UnlistedSkillsNote,
             IsMasterResume = resume.IsMasterResume,
             SourceResumeId = resume.SourceResumeId,
             TemplateKey = resume.TemplateKey,
@@ -93,6 +96,7 @@ public static class ResumeMappings
             Title = resume.Title,
             ProfessionalTitle = resume.ProfessionalTitle,
             Summary = resume.Summary,
+            UnlistedSkillsNote = resume.UnlistedSkillsNote,
             IsMasterResume = resume.IsMasterResume,
             SourceResumeId = resume.SourceResumeId,
             TemplateKey = resume.TemplateKey,
