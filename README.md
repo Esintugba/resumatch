@@ -36,7 +36,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Po
 dotnet user-secrets set "Jwt:SecretKey" $key --project API
 ```
 
-The job description parser is disabled by default (`JobDescriptionExtraction:Provider` is `Unavailable` and the parse worker is off). To use OpenAI, set `JobDescriptionExtraction:Provider` to `OpenAI` and provide `JobDescriptionExtraction:ApiKey` and `JobDescriptionExtraction:Model`; the validator rejects an OpenAI provider without both.
+The job description parser is disabled by default (`JobDescriptionExtraction:Provider` is `Unavailable` and the parse worker is off). While it is disabled, parse requests return 503 with the code `feature_disabled`, and `GET /api/capabilities` reports `"jobParsing": false`. To use OpenAI, set `JobDescriptionExtraction:Provider` to `OpenAI` and provide `JobDescriptionExtraction:ApiKey` and `JobDescriptionExtraction:Model`; the validator rejects an OpenAI provider without both.
 
 ### 2. Create the database
 

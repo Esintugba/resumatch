@@ -36,6 +36,7 @@ Rules for changing this list:
 | `precondition_required` | 428 | The operation needs an `If-Match` header. |
 | `rate_limited` | 429 | A rate limit was reached. See `Retry-After`. |
 | `internal_error` | 500 | An unexpected server error. Report the `traceId`. |
+| `feature_disabled` | 503 | This deployment has the feature turned off. Do not retry. Check `GET /api/capabilities`. |
 
 ## Specific conflict codes
 
@@ -74,6 +75,16 @@ Field messages are generic, so that they never echo input. The exception is an u
 ## Enums
 
 Enums are sent and received as names, such as `"Applied"`. Numbers are rejected in both JSON bodies and query strings. Names are matched without regard to case on input and are always written in the form shown in the OpenAPI document.
+
+## Capabilities
+
+`GET /api/capabilities` is anonymous and tells a client which optional features this deployment offers:
+
+```json
+{ "jobParsing": false }
+```
+
+When `jobParsing` is `false`, `POST /api/job-postings/{id}/parse` returns `feature_disabled`, whatever the job posting or `If-Match` value. No draft is created and no provider is called.
 
 ## Responses without a body
 

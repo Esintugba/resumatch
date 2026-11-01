@@ -1,4 +1,5 @@
 using Api.Application.Common.Concurrency;
+using Api.Application.Common.Exceptions;
 using Api.Application.JobParsing;
 using Api.DTOs.Common;
 using Api.DTOs.JobPosting;
@@ -15,12 +16,16 @@ namespace Api.Controllers;
 public sealed class JobPostingParseDraftsController : ControllerBase
 {
     private readonly IJobPostingParseDraftService _draftService;
+    private readonly IJobParsingAvailability _availability;
 
     public JobPostingParseDraftsController(
-        IJobPostingParseDraftService draftService)
+        IJobPostingParseDraftService draftService,
+        IJobParsingAvailability availability)
     {
         _draftService = draftService ??
             throw new ArgumentNullException(nameof(draftService));
+        _availability = availability ??
+            throw new ArgumentNullException(nameof(availability));
     }
 
     /// <summary>
@@ -43,11 +48,18 @@ public sealed class JobPostingParseDraftsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<JobPostingParseDraftResponse>> RequestParse(
         Guid jobPostingId,
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
+        if (!_availability.IsEnabled)
+        {
+            throw new FeatureDisabledException(
+                "Job description parsing is not available.");
+        }
+
         var expectedVersion = EntityTagPreconditions.GetRequiredVersion(ifMatch);
         var response = await _draftService.RequestParseAsync(
             jobPostingId,
