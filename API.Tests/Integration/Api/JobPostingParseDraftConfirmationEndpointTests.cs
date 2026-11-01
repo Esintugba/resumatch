@@ -99,7 +99,7 @@ public sealed class JobPostingParseDraftConfirmationEndpointTests :
 
         using var response = await client.SendAsync(request, cancellation.Token);
         var body = await response.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellation.Token);
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
@@ -870,7 +870,7 @@ public sealed class JobPostingParseDraftConfirmationEndpointTests :
             [],
             cancellation.Token);
         var firstBody = await firstResponse.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellation.Token);
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellation.Token);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         Assert.NotNull(firstBody);
 

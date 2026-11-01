@@ -138,7 +138,9 @@ public sealed class SkillService : ISkillService
 
         if (alreadyExists)
         {
-            throw new ConflictException("The skill is already added to this resume.");
+            throw new ConflictException(
+                "The skill is already added to this resume.",
+                ApiErrorCodes.DuplicateSkill);
         }
 
         var resumeSkill = request.ToEntity();

@@ -125,7 +125,7 @@ public sealed class JobPostingParseDraftEndpointTests : ApiIntegrationTestBase
 
         using var response = await client.SendAsync(request, cancellation.Token);
         var body = await response.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellation.Token);
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         Assert.NotNull(body);
@@ -168,7 +168,7 @@ public sealed class JobPostingParseDraftEndpointTests : ApiIntegrationTestBase
 
         using var response = await client.SendAsync(request, cancellation.Token);
         var body = await response.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellation.Token);
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(expectedStatus, (int)response.StatusCode);
         Assert.NotNull(body);
@@ -198,7 +198,7 @@ public sealed class JobPostingParseDraftEndpointTests : ApiIntegrationTestBase
         var json = await response.Content.ReadAsStringAsync(cancellation.Token);
         var body = JsonSerializer.Deserialize<JobPostingParseDraftDetailResponse>(
             json,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            ApiJson.Options);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
@@ -257,12 +257,12 @@ public sealed class JobPostingParseDraftEndpointTests : ApiIntegrationTestBase
             $"/api/job-postings/{seeded.Posting.Id:D}/parse-drafts?page=1&pageSize=2",
             cancellation.Token);
         var page = await pageResponse.Content.ReadFromJsonAsync<
-            PagedResponse<JobPostingParseDraftListItemResponse>>(cancellation.Token);
+            PagedResponse<JobPostingParseDraftListItemResponse>>(ApiJson.Options, cancellation.Token);
         using var filterResponse = await client.GetAsync(
             $"/api/job-postings/{seeded.Posting.Id:D}/parse-drafts?status=Cancelled",
             cancellation.Token);
         var filtered = await filterResponse.Content.ReadFromJsonAsync<
-            PagedResponse<JobPostingParseDraftListItemResponse>>(cancellation.Token);
+            PagedResponse<JobPostingParseDraftListItemResponse>>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, pageResponse.StatusCode);
         Assert.NotNull(page);
@@ -370,7 +370,7 @@ public sealed class JobPostingParseDraftEndpointTests : ApiIntegrationTestBase
 
         using var response = await client.SendAsync(request, cancellation.Token);
         var body = await response.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellation.Token);
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);

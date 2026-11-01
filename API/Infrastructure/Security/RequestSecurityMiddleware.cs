@@ -1,3 +1,4 @@
+using Api.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -40,7 +41,8 @@ public sealed class RequestSecurityMiddleware
                 context,
                 StatusCodes.Status415UnsupportedMediaType,
                 "Unsupported Media Type",
-                "Form request bodies are not supported by this API.");
+                "Form request bodies are not supported by this API.",
+                ApiErrorCodes.UnsupportedMediaType);
             return;
         }
 
@@ -74,14 +76,16 @@ public sealed class RequestSecurityMiddleware
             context,
             StatusCodes.Status413PayloadTooLarge,
             "Payload Too Large",
-            "The request body exceeds the permitted size.");
+            "The request body exceeds the permitted size.",
+            ApiErrorCodes.PayloadTooLarge);
     }
 
     private static Task WriteProblemAsync(
         HttpContext context,
         int status,
         string title,
-        string detail)
+        string detail,
+        string code)
     {
         context.Response.StatusCode = status;
         return context.Response.WriteAsJsonAsync(
@@ -90,7 +94,8 @@ public sealed class RequestSecurityMiddleware
                 Status = status,
                 Title = title,
                 Detail = detail,
-                Instance = context.Request.Path
+                Instance = context.Request.Path,
+                Extensions = { ["code"] = code }
             },
             options: null,
             contentType: "application/problem+json",

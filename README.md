@@ -62,6 +62,8 @@ In the `Development` environment the OpenAPI document is served anonymously at `
 
 All `/api/*` endpoints except `POST /api/auth/register` and `POST /api/auth/login` require a bearer token returned by those endpoints.
 
+Enums are sent and received as names such as `"Applied"`; numbers are rejected. Error responses are `application/problem+json` with a stable `code`, listed in [API error codes](docs/api/error-codes.md).
+
 ## Running tests
 
 ```powershell
@@ -111,6 +113,7 @@ docs/operations/    Production operations documentation
 
 ## Operations documentation
 
+- [API error codes](docs/api/error-codes.md): stable error codes and the enum contract
 - [Deployment contract](docs/operations/deployment.md): probes, migrations, canary, rollback, HTTP security and proxy settings
 - [Runbooks](docs/operations/runbooks.md)
 - [SLOs](docs/operations/slo.md)

@@ -60,6 +60,7 @@ public sealed class AnalysisSourceProvenanceEndpointTests :
             },
             cancellation.Token);
         var created = await post.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Created, post.StatusCode);
@@ -88,6 +89,7 @@ public sealed class AnalysisSourceProvenanceEndpointTests :
             $"/api/analyses/{created.Id:D}",
             cancellation.Token);
         var fetched = await get.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
         Assert.NotNull(fetched);
@@ -117,6 +119,7 @@ public sealed class AnalysisSourceProvenanceEndpointTests :
             new AnalyzeResumeRequest { ResumeId = resume.Id },
             cancellation.Token);
         var body = await response.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

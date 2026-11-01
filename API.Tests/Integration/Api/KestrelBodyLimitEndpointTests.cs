@@ -167,6 +167,7 @@ public sealed class KestrelBodyLimitEndpointTests(PostgreSqlFixture fixture)
                 ["title"] = "Payload Too Large",
                 ["status"] = "413",
                 ["detail"] = "The request body exceeds the permitted size.",
+                ["code"] = "payload_too_large",
                 ["instance"] = expectedInstance
             },
             properties);

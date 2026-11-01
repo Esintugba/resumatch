@@ -347,7 +347,7 @@ Her satır tek PR'dır. Kapalı beta için 21 PR vardır. **Migration içeren he
 
 | # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
 |---|---|---|---|---|---|
-| 1 | API sözleşmesi | Hayır | Evet | Sonraki her PR buna dayanır, davranış değil biçim değiştirir | String enum, hata `code`, `ProblemDetails` tipleri, `Retry-After` ve `ETag` için CORS, draft `eTag`, `/api` için `no-store` |
+| 1 | API sözleşmesi | Hayır | Evet | Sonraki her PR buna dayanır, davranış değil biçim değiştirir | String enum, hata `code`, `ProblemDetails` tipleri, `Retry-After` ve `ETag` için CORS |
 | 2 | Kapalı özellik yanıtı | Hayır | Evet | Parse davranışını değiştirir, kendi testleri olur | `GET /capabilities`, OpenAI kapalıyken `POST .../parse` 503 ve `feature_disabled` kodu, draft oluşturmaz |
 | 3 | Beceri kataloğu | **Evet** | Evet | Veri ve şema değişikliği, ayrı onay ister | Küratörlü liste, "katalogda yok" notu |
 | 4 | Oturum temeli | **Evet** | Evet | Tablo ve token kuralları, cookie'den bağımsız test edilir | Refresh oturumları, rotasyon, tekrar kullanım, `SecurityStamp`, logout, oturum listesi, 15 dk access |
@@ -374,7 +374,7 @@ Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
 | 11 | E-posta ve doğrulama | **Evet** | Evet | Gönderici altyapısı, PR 12 buna dayanır | Gönderici soyutlaması, yerelde sahte gönderici, doğrulama bağlantısı, doğrulanmamış hesaba kısıt |
 | 12 | Parola ve profil | **Evet** | Evet | Hesap güvenliği, token tablosu ekler | Değiştirme, sıfırlama, tüm oturumları düşürme, profil güncelleme |
 | 13 | Dışa aktarma ve hesap silme | **Evet** | Evet | Aynı veri haritasını kullanır, birlikte incelenmeli | JSON dışa aktarma, 7 gün geri alma, kalıcı silme işi, AI defteri anonimleştirme, ayarlar ekranı |
-| 14 | Saklama ve işletme ayarları | **Evet** | Evet | Davranışı yapılandırma ile değiştirir, uyarı kaydı ekler | Purge açma, analiz hız sınırı, EF log seviyesi, hareketsizlik uyarısı ve silme |
+| 14 | Saklama ve işletme ayarları | **Evet** | Evet | Davranışı yapılandırma ile değiştirir, uyarı kaydı ekler | Purge açma, analiz hız sınırı, EF log seviyesi, `/api` için `no-store`, draft `eTag` alanı, hareketsizlik uyarısı ve silme |
 
 ### Aşama D: Kalan ürün ekranları
 

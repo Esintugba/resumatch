@@ -252,7 +252,8 @@ public sealed class ResumeService : IResumeService
         if (hasDerivedResumes)
         {
             throw new ConflictException(
-                "Resume cannot be deleted while derived resumes reference it.");
+                "Resume cannot be deleted while derived resumes reference it.",
+                ApiErrorCodes.ResourceInUse);
         }
 
         // JobApplication uses ON DELETE SET NULL, so application history is retained.
@@ -266,7 +267,8 @@ public sealed class ResumeService : IResumeService
         {
             throw new ConflictException(
                 "Resume cannot be deleted because it is referenced by existing records.",
-                exception);
+                exception,
+                ApiErrorCodes.ResourceInUse);
         }
     }
 

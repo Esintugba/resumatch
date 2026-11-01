@@ -52,7 +52,7 @@ Trust only private and loopback peers (`TrustedNetworks` `10.0.0.0/8`, `TrustedP
 | `HttpSecurity__ForwardedForHeaderName` | `CF-Connecting-IP` | Yes | No |
 | `HttpSecurity__TrustedNetworks__0` | `10.0.0.0/8` | Yes | No |
 | `HttpSecurity__TrustedProxies__0` / `__1` | `127.0.0.1` / `::1` | Yes | No |
-| `HttpSecurity__AllowedOrigins__0` | `https://app.example.com` | Only with a browser client | No |
+| `HttpSecurity__AllowedOrigins__0` | `https://app.example.com` | Only with a browser client. Allowed origins can read `ETag` and `Retry-After`. | No |
 | `JobDescriptionExtraction__Provider` | `OpenAI` (default `Unavailable`) | To enable parsing | No |
 | `JobDescriptionExtraction__ApiKey` | Provider key | With OpenAI | Yes |
 | `JobDescriptionExtraction__Model` | Dated model snapshot | With OpenAI | No |

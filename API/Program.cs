@@ -1,9 +1,11 @@
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Api.Application.Analysis;
 using Api.Application.Analysis.Engine;
 using Api.Application.Analysis.Queries;
 using Api.Application.Auth;
+using Api.Application.Common.Exceptions;
 using Api.Application.Certifications;
 using Api.Application.Common.Interfaces;
 using Api.Application.Educations;
@@ -174,6 +176,7 @@ builder.Services.AddCors(options => options.AddPolicy(
 
         policy.WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             .WithHeaders("Authorization", "Content-Type", "If-Match")
+            .WithExposedHeaders("ETag", "Retry-After")
             .SetPreflightMaxAge(TimeSpan.FromHours(1));
         if (httpSecuritySettings.AllowCredentials)
         {
@@ -492,6 +495,25 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                var response = context.Response;
+                response.StatusCode = StatusCodes.Status401Unauthorized;
+                response.Headers.WWWAuthenticate = JwtBearerDefaults.AuthenticationScheme;
+                await response.WriteAsJsonAsync(
+                    new Microsoft.AspNetCore.Mvc.ProblemDetails
+                    {
+                        Status = StatusCodes.Status401Unauthorized,
+                        Title = "Unauthorized",
+                        Detail = "Authentication is required or the supplied credentials are invalid.",
+                        Instance = context.HttpContext.Request.Path,
+                        Extensions = { ["code"] = ApiErrorCodes.Unauthorized }
+                    },
+                    options: null,
+                    contentType: "application/problem+json",
+                    cancellationToken: context.HttpContext.RequestAborted);
+            },
             OnTokenValidated = async context =>
             {
                 var userIdClaim = context.Principal?
@@ -564,7 +586,8 @@ builder.Services.AddRateLimiter(options =>
                 Status = StatusCodes.Status429TooManyRequests,
                 Title = "Too Many Requests",
                 Detail = "The request rate limit was exceeded.",
-                Instance = context.HttpContext.Request.Path
+                Instance = context.HttpContext.Request.Path,
+                Extensions = { ["code"] = ApiErrorCodes.RateLimited }
             },
             options: null,
             contentType: "application/problem+json",
@@ -647,12 +670,19 @@ builder.Services.AddHealthChecks()
 
 // Add services to the container.
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+        options.ModelBinderProviders.Insert(0, new StrictEnumQueryModelBinderProvider()))
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.MaxDepth = requestLimitSettings.JsonMaxDepth;
         options.JsonSerializerOptions.AllowDuplicateProperties = false;
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(allowIntegerValues: false));
     });
+// The OpenAPI document reads these options, not the MVC ones above.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
@@ -666,7 +696,11 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                     : entry.Key.Length <= 128
                         ? entry.Key
                         : entry.Key[..128],
-                _ => new[] { "The supplied value is invalid." },
+                entry => new[]
+                {
+                    EnumValidationMessages.Find(entry.Value!.Errors) ??
+                        "The supplied value is invalid."
+                },
                 StringComparer.Ordinal);
         if (errors.Count == 0)
         {
@@ -679,6 +713,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             Title = "Validation failed",
             Instance = context.HttpContext.Request.Path
         };
+        problem.Extensions["code"] = ApiErrorCodes.ValidationFailed;
         problem.Extensions["traceId"] =
             System.Diagnostics.Activity.Current?.Id ??
             context.HttpContext.TraceIdentifier;
@@ -689,7 +724,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+    options.AddSchemaTransformer<ApiContractSchemaTransformer>());
 
 var app = builder.Build();
 
