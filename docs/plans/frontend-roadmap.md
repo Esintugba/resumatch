@@ -1,6 +1,6 @@
 # ResuMatch frontend ve gerçek kullanıcı yol haritası
 
-Durum: Ana kararlar verildi, yedi karar bekliyor. İnceleme tarihi: 2026-11-01, `main` commit'i `f459c56`. `alanadi.com`, seçilecek alan adı için yer tutucudur.
+Durum: Kararlar verildi, uygulama PR 1 ile başlıyor. İnceleme tarihi: 2026-11-01, `main` commit'i `f459c56`. `alanadi.com`, seçilecek alan adı için yer tutucudur.
 
 Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. Belgedeki hukuk notları hukuki görüş değildir. Fiyatlar kaynak listesindeki tarihte okunmuştur ve değişebilir.
 
@@ -12,8 +12,8 @@ Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. 
 - **Özgeçmiş verisi OpenAI'ye gitmiyor.** Yalnızca iş ilanının başlığı ve açıklaması gidiyor. OpenAI şu an kapalı.
 - **Sıra:** Önce zorunlu backend temeli, sonra giriş → özgeçmiş → ATS analizi akışı, ardından kalan backend işleri. Beta kapısı değişmez.
 - **Maliyet:** Geliştirmede yalnızca alan adı (yılda yaklaşık 11 dolar), beta öncesi aylık yaklaşık 12 dolar (bölüm 8).
-- **Kapalı beta planı:** 21 PR, migration içeren 6 PR için ayrı onay gerekir (bölüm 7).
-- **Bekleyen:** Yedi karar (bölüm 8).
+- **Kapalı beta planı:** 21 PR, migration içeren 7 PR için ayrı onay gerekir (bölüm 7).
+- **Kararlar:** Tümü verildi (bölüm 8). Veri sorumlusu yapısı avukatla netleşene kadar davet gönderilmez.
 
 ## 1. API envanteri
 
@@ -373,8 +373,8 @@ Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
 | 10 | Rıza ve davetli kayıt | **Evet** | Evet | Kayıt kapısını tek yerde değiştirir | Politika sürümü, kabul kaydı, yeni sürümde yeniden onay, davet kodu, gizlilik ve şartlar sayfaları |
 | 11 | E-posta ve doğrulama | **Evet** | Evet | Gönderici altyapısı, PR 12 buna dayanır | Gönderici soyutlaması, yerelde sahte gönderici, doğrulama bağlantısı, doğrulanmamış hesaba kısıt |
 | 12 | Parola ve profil | **Evet** | Evet | Hesap güvenliği, token tablosu ekler | Değiştirme, sıfırlama, tüm oturumları düşürme, profil güncelleme |
-| 13 | Dışa aktarma ve hesap silme | **Evet** | Evet | Aynı veri haritasını kullanır, birlikte incelenmeli | JSON dışa aktarma, geri alma süreli silme, AI defteri anonimleştirme, ayarlar ekranı |
-| 14 | Saklama ve işletme ayarları | Hayır | Evet | Davranışı yapılandırma ile değiştirir | Purge açma, analiz hız sınırı, EF log seviyesi |
+| 13 | Dışa aktarma ve hesap silme | **Evet** | Evet | Aynı veri haritasını kullanır, birlikte incelenmeli | JSON dışa aktarma, 7 gün geri alma, kalıcı silme işi, AI defteri anonimleştirme, ayarlar ekranı |
+| 14 | Saklama ve işletme ayarları | **Evet** | Evet | Davranışı yapılandırma ile değiştirir, uyarı kaydı ekler | Purge açma, analiz hız sınırı, EF log seviyesi, hareketsizlik uyarısı ve silme |
 
 ### Aşama D: Kalan ürün ekranları
 
@@ -392,6 +392,23 @@ Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
 | 19 | Üretim yayını | Hayır | Evet | Alan adına bağlı tek değişiklik | Static Site, `alanadi.com`, `api.alanadi.com`, CSP, CORS, deploy sırası, iki istemci testini yenileme |
 | 20 | Yedek ve geri yükleme runbook'u | Hayır | Evet | İşletme kanıtı, kod değil | Neon Launch ayarı, geri yükleme adımları, tatbikat sonucu |
 | 21 | Hukuki metinlerin yayını | Hayır | Evet | Avukat görüşüne bağlı, zamanı dışarıdan belirlenir | Onaylı metinler ve sürüm kaydı |
+
+### Hesap silme ve hareketsizlik (PR 13 ve 14)
+
+**Hesap silme:**
+
+- Silme isteği parola ile onaylanır, hesap `DeletionRequested` durumuna geçer, tüm oturumlar anında iptal edilir.
+- 7 gün boyunca giriş kapalıdır. Geri alma yalnızca e-postadaki tek kullanımlık bağlantıyla yapılır.
+- Kalıcı silme tek seferlik ve yeniden denenebilir bir iştir. Lease ile aynı anda tek çalıştırıcı olur, adımlar idempotent yazılır, yarıda kalan iş sonraki turda kaldığı yerden devam eder, başarısızlık metrik üretir.
+- Bitiş kaydında kişisel veri tutulmaz.
+- **Gizlilik metni notu:** Silinen verinin yedeklerde ne kadar kaldığı yazılacak. Süre, Neon geri yükleme penceresine eşittir (Launch ile 7 gün). Harici yedek eklenirse metin güncellenir.
+
+**Hareketsizlik:**
+
+- Süre yapılandırılabilir. Varsayılan 24 ay, avukat onayına bağlıdır ve bu belgeye işlenir.
+- Silmeden önce e-posta uyarısı gider. Uyarı gönderilmeden silme başlamaz. Uyarı ile silme arası süre de ayarlanabilir, öneri 30 gün.
+- Kullanıcı bu sürede giriş yaparsa silme iptal olur.
+- E-posta teslim edilemezse hesap silinmez, kayıt incelemeye düşer.
 
 ### Beceri kataloğu tasarımı (PR 3)
 
@@ -415,7 +432,9 @@ Tümü sağlanmadan davet gönderilmez:
 - [ ] Hesap silme, veri dışa aktarma, şifre sıfırlama, e-posta doğrulama ve rıza canlıda çalışıyor.
 - [ ] Render Starter ve Neon Launch aktif.
 - [ ] **Yedek alma ve geri yükleme denemesi başarılı, süresi kayıtlı.**
+- [ ] **Veri sorumlusu yapısı avukatla netleşti. Bu tamamlanmadan davet gönderilmez.**
 - [ ] **Avukat görüşü alındı, metinler yayında.**
+- [ ] Yedeklerdeki verinin silinme süresi ve hareketsizlik süresi gizlilik metninde yazılı.
 - [ ] CSP zorlayıcı modda, kritik E2E ve axe temiz.
 - [ ] Özel alan adında iki istemci ve sahte başlık testleri geçti.
 - [ ] OpenAI kapalı, parse isteği `feature_disabled` dönüyor.
@@ -477,17 +496,17 @@ Avukat görüşü tek seferlik gider ve beta çıkış şartıdır. Burada fiyat
 | Hukuk | Avukat görüşü beta çıkış şartı |
 | OpenAI | Betada kapalı, parse isteği açık hata döner |
 
-### Kalan kararlar
+### Onaylanan öneriler
 
-| Karar | Önerim | Neden | Maliyet | Sonra değiştirmesi |
+| Karar | Onaylanan | Neden | Maliyet | Sonra değiştirmesi |
 |---|---|---|---|---|
 | Hosting: Starter ne zaman açılacak | PR 19 ile, davetten en az 1 hafta önce | Geliştirmede para harcamaz, yayını gerçek koşulda dener | 7/ay | **Kolay.** Plan değişir, kod değişmez. |
 | Yedekleme: Neon Launch yeterli mi | 7 gün geçmiş yeterli. Harici `pg_dump` lansman öncesi yeniden değerlendirilir. | Harici yedek ek hesap ve gizli değer ister | ~4/ay, harici yedek ek | **Kolay**, ama kaçırılan geçmiş geri gelmez. |
 | E-posta sağlayıcısı | Resend Free, `mail.alanadi.com` gönderen alan adı, SPF ve DKIM | Beta hacmine yeter, alt alan ana alan adının itibarını korur | 0. 3.000/ay üstü 20/ay. | **Kolay.** Soyutlama arkasında, DNS ve itibar yeniden kurulur. |
 | Hukuki yapı: Veri sorumlusu kim | Avukatla şahıs veya şirket yapısını netleştir | Metinler, aktarım ve sorumluluk buna bağlı | Teklif alınmalı | **Zor.** Değişirse metinler ve rıza yenilenir. |
 | OpenAI: Lansmanda açılma ölçütü | Beta geri bildirimi parse ihtiyacını gösterirse aç | Kapalı beta bu veri riskini taşımaz, ürün değeri önce ölçülür | Betada 0. Sonrası model ve bütçeye bağlı. | **Kolay** teknik olarak. Hukuki metin önceden hazır olmalı. |
-| Hesap silme biçimi | 7 gün geri alma, sonra kalıcı silme | Yanlışlıkla silmeyi kurtarır, süre gizlilik metninde yazılır | 0 | **Orta.** Şema ve metin değişir. Kalıcı silinen veri geri gelmez. |
-| Veri saklama süreleri | Bölüm 2'deki tablo, 24 ay hareketsizlik | Süresiz saklamayı bitirir, kullanıcı tarafı basit kalır | 0 | **Orta.** Kısaltmak kolay, uzatmak yeni bilgilendirme ister. |
+| Hesap silme biçimi | 7 gün geri alma, bu sürede giriş kapalı, sonra kalıcı silme | Yanlışlıkla silmeyi kurtarır, süre gizlilik metninde yazılır | 0 | **Orta.** Şema ve metin değişir. Kalıcı silinen veri geri gelmez. |
+| Veri saklama süreleri | Bölüm 2'deki tablo, 24 ay hareketsizlik (avukat onayına bağlı, ayarlanabilir), silmeden önce e-posta uyarısı | Süresiz saklamayı bitirir, kullanıcı tarafı basit kalır | 0 | **Orta.** Kısaltmak kolay, uzatmak yeni bilgilendirme ister. |
 
 **KVKK notu:** Render, Neon, OpenAI ve e-posta sağlayıcıları yurt dışı aktarım sorusu doğurabilir. 7499 sayılı Kanun sonrası m.9'da açık rıza artık ana yol değil, sınırlı bir istisna olarak yorumlanıyor. Yeterlilik kararı ve standart sözleşme gibi yollar öne çıkıyor. Bu konuyu rıza kutusuyla çözülmüş sayma. Avukat değerlendirmesi gerekir.
 
