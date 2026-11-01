@@ -96,6 +96,58 @@ public sealed class JobPostingsController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>Adds a catalog skill to a job posting by hand.</summary>
+    /// <remarks>If-Match must contain the current job posting ETag.</remarks>
+    [HttpPost("{jobPostingId:guid}/skills")]
+    [ProducesResponseType(typeof(JobPostingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
+    public async Task<ActionResult<JobPostingResponse>> AddSkill(
+        Guid jobPostingId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        [FromBody] AddJobPostingSkillRequest request,
+        CancellationToken cancellationToken)
+    {
+        var expectedVersion = EntityTagPreconditions.GetRequiredVersion(ifMatch);
+        var response = await _jobPostingService.AddSkillAsync(
+            jobPostingId,
+            expectedVersion,
+            request,
+            cancellationToken);
+
+        Response.Headers.ETag = response.ETag;
+        return Ok(response);
+    }
+
+    /// <summary>Removes a manually added skill from a job posting.</summary>
+    /// <remarks>If-Match must contain the current job posting ETag.</remarks>
+    [HttpDelete("{jobPostingId:guid}/skills/{skillId:guid}")]
+    [ProducesResponseType(typeof(JobPostingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
+    public async Task<ActionResult<JobPostingResponse>> RemoveSkill(
+        Guid jobPostingId,
+        Guid skillId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        var expectedVersion = EntityTagPreconditions.GetRequiredVersion(ifMatch);
+        var response = await _jobPostingService.RemoveSkillAsync(
+            jobPostingId,
+            skillId,
+            expectedVersion,
+            cancellationToken);
+
+        Response.Headers.ETag = response.ETag;
+        return Ok(response);
+    }
+
     [HttpPost("{jobPostingId:guid}/skills/{skillId:guid}/adopt")]
     [ProducesResponseType(typeof(JobPostingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

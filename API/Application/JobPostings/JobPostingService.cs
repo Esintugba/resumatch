@@ -20,6 +20,7 @@ public sealed class JobPostingService : IJobPostingService
 {
     private const int MaximumPageSize = 100;
     private const int MaximumSearchLength = 250;
+    private const int MaximumSkillsPerPosting = 50;
     private const string LikeEscapeCharacter = "~";
     private const string DeleteConflictMessage =
         "Job posting cannot be deleted while job applications reference it.";
@@ -251,6 +252,106 @@ public sealed class JobPostingService : IJobPostingService
         return jobPosting.ToResponse();
     }
 
+    public async Task<JobPostingResponse> AddSkillAsync(
+        Guid jobPostingId,
+        uint expectedVersion,
+        AddJobPostingSkillRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ValidateRequiredId(jobPostingId);
+        ValidateRequiredSkillId(request.SkillId);
+
+        var updatedAt = _timeProvider.GetUtcNow().ToUniversalTime();
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var jobPosting = await LoadLockedJobPostingAsync(
+            transaction,
+            jobPostingId,
+            expectedVersion,
+            cancellationToken);
+
+        var skill = await _dbContext.Skills.SingleOrDefaultAsync(
+            item => item.Id == request.SkillId,
+            cancellationToken);
+        if (skill is null)
+        {
+            throw new NotFoundException("Skill was not found.");
+        }
+
+        // An existing row is never rewritten, because it may hold AI provenance.
+        if (jobPosting.Skills.Any(item => item.SkillId == request.SkillId))
+        {
+            throw new ConflictException(
+                "The skill is already associated with this job posting.",
+                ApiErrorCodes.DuplicateSkill);
+        }
+
+        if (jobPosting.Skills.Count >= MaximumSkillsPerPosting)
+        {
+            throw new ConflictException(
+                $"A job posting cannot contain more than {MaximumSkillsPerPosting} skills.",
+                ApiErrorCodes.JobPostingSkillLimitReached);
+        }
+
+        jobPosting.Skills.Add(new JobPostingSkill
+        {
+            JobPostingId = jobPosting.Id,
+            SkillId = skill.Id,
+            Skill = skill,
+            RequirementType = request.RequirementType,
+            ImportanceScore = request.ImportanceScore,
+            IsAiDetected = false,
+            ProvenanceStatus = JobPostingSkillProvenanceStatus.Manual
+        });
+        jobPosting.UpdatedAt = updatedAt;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return jobPosting.ToResponse();
+    }
+
+    public async Task<JobPostingResponse> RemoveSkillAsync(
+        Guid jobPostingId,
+        Guid skillId,
+        uint expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        ValidateRequiredId(jobPostingId);
+        ValidateRequiredSkillId(skillId);
+
+        var updatedAt = _timeProvider.GetUtcNow().ToUniversalTime();
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var jobPosting = await LoadLockedJobPostingAsync(
+            transaction,
+            jobPostingId,
+            expectedVersion,
+            cancellationToken);
+
+        var jobPostingSkill = jobPosting.Skills.SingleOrDefault(
+            item => item.SkillId == skillId);
+        if (jobPostingSkill is null)
+        {
+            throw new NotFoundException("Job posting skill was not found.");
+        }
+
+        if (jobPostingSkill.ProvenanceStatus != JobPostingSkillProvenanceStatus.Manual)
+        {
+            throw new ConflictException(
+                "Only manually added job posting skills can be removed.",
+                ApiErrorCodes.SkillProvenanceLocked);
+        }
+
+        jobPosting.Skills.Remove(jobPostingSkill);
+        _dbContext.JobPostingSkills.Remove(jobPostingSkill);
+        jobPosting.UpdatedAt = updatedAt;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return jobPosting.ToResponse();
+    }
+
     public async Task<JobPostingResponse> AdoptSkillAsync(
         Guid jobPostingId,
         Guid skillId,
@@ -341,6 +442,41 @@ public sealed class JobPostingService : IJobPostingService
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return jobPosting.ToResponse();
+    }
+
+    private async Task<JobPosting> LoadLockedJobPostingAsync(
+        IDbContextTransaction transaction,
+        Guid jobPostingId,
+        uint expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.GetRequiredUserId();
+        var currentVersion = await LockOwnedJobPostingAsync(
+            transaction,
+            jobPostingId,
+            userId,
+            cancellationToken);
+        if (currentVersion is null)
+        {
+            throw new NotFoundException("Job posting was not found.");
+        }
+
+        if (currentVersion.Value != expectedVersion)
+        {
+            throw new DbUpdateConcurrencyException(
+                "The job posting was modified by another operation.");
+        }
+
+        var jobPosting = await _dbContext.JobPostings
+            .Include(item => item.Skills)
+                .ThenInclude(jobPostingSkill => jobPostingSkill.Skill)
+            .SingleAsync(
+                item => item.Id == jobPostingId && item.UserId == userId,
+                cancellationToken);
+        _dbContext.Entry(jobPosting)
+            .Property(item => item.Version)
+            .OriginalValue = expectedVersion;
+        return jobPosting;
     }
 
     private async Task<uint?> LockOwnedJobPostingAsync(

@@ -27,6 +27,18 @@ public interface IJobPostingService
         UpdateJobPostingRequest request,
         CancellationToken cancellationToken);
 
+    Task<JobPostingResponse> AddSkillAsync(
+        Guid jobPostingId,
+        uint expectedVersion,
+        AddJobPostingSkillRequest request,
+        CancellationToken cancellationToken);
+
+    Task<JobPostingResponse> RemoveSkillAsync(
+        Guid jobPostingId,
+        Guid skillId,
+        uint expectedVersion,
+        CancellationToken cancellationToken);
+
     Task<JobPostingResponse> AdoptSkillAsync(
         Guid jobPostingId,
         Guid skillId,
