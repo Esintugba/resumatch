@@ -93,7 +93,7 @@ public sealed class SkillCatalogMigrationTests(PostgreSqlFixture fixture)
         Assert.Equal(existingId, skill.Id);
         Assert.Equal(SkillCategory.Other, skill.Category);
         Assert.Equal("Takım çalışması", skill.NameTr);
-        Assert.Equal(400, await dbContext.Skills.CountAsync());
+        Assert.Equal(399, await dbContext.Skills.CountAsync());
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class SkillCatalogMigrationTests(PostgreSqlFixture fixture)
         await MigrateAsync(CatalogMigration);
 
         await using var dbContext = CreateContext();
-        Assert.Equal(400, await dbContext.Skills.CountAsync());
+        Assert.Equal(399, await dbContext.Skills.CountAsync());
         Assert.Equal(
             skillId,
             (await dbContext.ResumeSkills.AsNoTracking().SingleAsync()).SkillId);
@@ -126,7 +126,7 @@ public sealed class SkillCatalogMigrationTests(PostgreSqlFixture fixture)
     }
 
     private const string ExpectedCatalogHash =
-        "00fdceec0aec293763ca033678ae5ec6a1b42a1a2ec8483b3f4b8d910cb25b50";
+        "46c6c3a02b08b2f18c967c39524a2e2c27bbc328753d28546e479e7bf2c47c7f";
 
     private async Task<Guid> SeedResumeUsingSkillAsync(string normalizedName)
     {

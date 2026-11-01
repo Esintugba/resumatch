@@ -24,7 +24,6 @@ R,ProgrammingLanguage,
 Ruby,ProgrammingLanguage,
 Rust,ProgrammingLanguage,
 Scala,ProgrammingLanguage,
-Shell Scripting,ProgrammingLanguage,Kabuk betikleme
 Solidity,ProgrammingLanguage,
 SQL,ProgrammingLanguage,
 Swift,ProgrammingLanguage,
@@ -227,7 +226,7 @@ Microsoft Azure,Cloud,
 Netlify,Cloud,
 Oracle Cloud,Cloud,
 Render,Cloud,
-Serverless Computing,Cloud,Sunucusuz bilişim
+Serverless Computing,Cloud,
 Vercel,Cloud,
 Appium,Testing,
 Behavior-Driven Development,Testing,Davranış odaklı geliştirme
@@ -262,11 +261,11 @@ Clean Architecture,Architecture,Temiz mimari
 CQRS,Architecture,
 Design Patterns,Architecture,Tasarım kalıpları
 Distributed Systems,Architecture,Dağıtık sistemler
-Domain-Driven Design,Architecture,Alan odaklı tasarım
+Domain-Driven Design,Architecture,
 Event Sourcing,Architecture,Olay kaynaklama
 Event-Driven Architecture,Architecture,Olay güdümlü mimari
 Functional Programming,Architecture,Fonksiyonel programlama
-Hexagonal Architecture,Architecture,Altıgen mimari
+Hexagonal Architecture,Architecture,
 High Availability,Architecture,Yüksek erişilebilirlik
 Load Balancing,Architecture,Yük dengeleme
 Message Queues,Architecture,Mesaj kuyrukları

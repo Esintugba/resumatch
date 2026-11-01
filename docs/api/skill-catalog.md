@@ -2,7 +2,7 @@
 
 Users pick skills from a curated catalog. User input never enters it.
 
-- **Source:** [`API/Data/SkillCatalog/skill-catalog-v1.csv`](../../API/Data/SkillCatalog/skill-catalog-v1.csv), 400 skills written for this project. No row is copied from an external data set.
+- **Source:** [`API/Data/SkillCatalog/skill-catalog-v1.csv`](../../API/Data/SkillCatalog/skill-catalog-v1.csv), 399 skills written for this project. No row is copied from an external data set.
 - **One name per technology:** variants such as `React.js`, `nodejs` or `postgres` are not separate rows. A test keeps normalized names unique across categories.
 - **Names:** `Name` is the canonical name and is the only name used for matching. `NameTr` is a display name for general concepts, and stays empty for product names.
 - **Changes:** edit the catalog with a new migration. Do not edit a migration that has already been applied.

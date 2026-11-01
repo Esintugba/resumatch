@@ -14,10 +14,10 @@ public sealed class SkillCatalogFileTests
     [Fact]
     public void Catalog_HasThePlannedSizeAndDistribution()
     {
-        Assert.Equal(400, Rows.Count);
+        Assert.Equal(399, Rows.Count);
         var expected = new Dictionary<SkillCategory, int>
         {
-            [SkillCategory.ProgrammingLanguage] = 30,
+            [SkillCategory.ProgrammingLanguage] = 29,
             [SkillCategory.Frontend] = 40,
             [SkillCategory.Backend] = 50,
             [SkillCategory.Database] = 30,
@@ -87,6 +87,8 @@ public sealed class SkillCatalogFileTests
     [InlineData("swagger")]
     [InlineData("kafka")]
     [InlineData("excel")]
+    [InlineData("shell scripting")]
+    [InlineData("shell")]
     public void CommonVariants_AreNotSeparateRecords(string variant)
     {
         Assert.DoesNotContain(Rows, row => row.NormalizedName == variant);
