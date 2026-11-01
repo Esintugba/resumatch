@@ -42,6 +42,7 @@ public sealed class JobPostingSkillAdoptionEndpointTests : ApiIntegrationTestBas
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JobPostingResponse>(
+            ApiJson.Options,
             cancellation.Token);
         Assert.NotNull(body);
         Assert.NotEqual(EntityTagCodec.Format(seed.Posting.Version), body.ETag);
@@ -110,6 +111,7 @@ public sealed class JobPostingSkillAdoptionEndpointTests : ApiIntegrationTestBas
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JobPostingResponse>(
+            ApiJson.Options,
             cancellation.Token);
         Assert.NotNull(body);
         Assert.Equal(originalEtag, body.ETag);
@@ -255,6 +257,7 @@ public sealed class JobPostingSkillAdoptionEndpointTests : ApiIntegrationTestBas
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JobPostingResponse>(
+            ApiJson.Options,
             cancellation.Token);
         Assert.NotNull(body);
         var skill = Assert.Single(body.Skills);

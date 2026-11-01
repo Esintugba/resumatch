@@ -100,7 +100,7 @@ public sealed class JobDescriptionParserEndToEndTests : IntegrationTestBase
             confirmRequest,
             cancellation.Token);
         var confirmed = await confirmedResponse.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellation.Token);
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, confirmedResponse.StatusCode);
         Assert.Equal(JobPostingParseDraftStatus.Confirmed, confirmed?.Status);
@@ -661,6 +661,7 @@ public sealed class JobDescriptionParserEndToEndTests : IntegrationTestBase
             cancellation.Token);
         var detail = (await detailResponse.Content
             .ReadFromJsonAsync<JobPostingParseDraftDetailResponse>(
+                ApiJson.Options,
                 cancellation.Token))!;
         await UpdatePostingAsync(seeded.Posting.Id, true, cancellation.Token);
 
@@ -764,7 +765,7 @@ public sealed class JobDescriptionParserEndToEndTests : IntegrationTestBase
             EntityTagCodec.Format(posting.Version));
         var response = await client.SendAsync(request, cancellationToken);
         var body = await response.Content
-            .ReadFromJsonAsync<JobPostingParseDraftResponse>(cancellationToken)
+            .ReadFromJsonAsync<JobPostingParseDraftResponse>(ApiJson.Options, cancellationToken)
             ?? throw new InvalidOperationException("Missing parse response.");
         request.Dispose();
         return (response, body);
@@ -1034,7 +1035,7 @@ public sealed class JobDescriptionParserEndToEndTests : IntegrationTestBase
         new(TimeSpan.FromSeconds(60));
 
     private static readonly JsonSerializerOptions WebJson =
-        new(JsonSerializerDefaults.Web);
+        ApiJson.Options;
 
     private sealed record SeededScenario(
         User User,

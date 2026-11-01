@@ -31,6 +31,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             new AnalyzeResumeRequest { ResumeId = resume.Id },
             cancellation.Token);
         var body = await response.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -109,6 +110,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             },
             cancellation.Token);
         var body = await response.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -162,6 +164,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             },
             cancellation.Token);
         var body = await response.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -184,7 +187,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             new AnalyzeResumeRequest { ResumeId = resume.Id },
             cancellation.Token);
         var created = await createResponse.Content
-            .ReadFromJsonAsync<ResumeAnalysisResponse>(cancellation.Token);
+            .ReadFromJsonAsync<ResumeAnalysisResponse>(ApiJson.Options, cancellation.Token);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.NotNull(created);
 
@@ -192,7 +195,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             $"/api/analyses/{created.Id:D}",
             cancellation.Token);
         var fetched = await getResponse.Content
-            .ReadFromJsonAsync<ResumeAnalysisResponse>(cancellation.Token);
+            .ReadFromJsonAsync<ResumeAnalysisResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         Assert.NotNull(fetched);
@@ -232,7 +235,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             new AnalyzeResumeRequest { ResumeId = resume.Id },
             cancellation.Token);
         var created = await postResponse.Content
-            .ReadFromJsonAsync<ResumeAnalysisResponse>(cancellation.Token);
+            .ReadFromJsonAsync<ResumeAnalysisResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.Created, postResponse.StatusCode);
         Assert.NotNull(created);
@@ -264,7 +267,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             $"/api/analyses/{created.Id:D}",
             cancellation.Token);
         var fetched = await getResponse.Content
-            .ReadFromJsonAsync<ResumeAnalysisResponse>(cancellation.Token);
+            .ReadFromJsonAsync<ResumeAnalysisResponse>(ApiJson.Options, cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         Assert.NotNull(fetched);
@@ -310,6 +313,7 @@ public sealed class AnalysisEndpointTests : AnalysisApiTestBase
             cancellation.Token);
         var body = await response.Content
             .ReadFromJsonAsync<PagedResponse<AnalysisListItemResponse>>(
+                ApiJson.Options,
                 cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

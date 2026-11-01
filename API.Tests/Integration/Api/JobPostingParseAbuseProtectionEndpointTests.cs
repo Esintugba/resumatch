@@ -50,6 +50,7 @@ public sealed class JobPostingParseAbuseProtectionEndpointTests :
         Assert.Equal("application/problem+json",
             limited.Content.Headers.ContentType?.MediaType);
         var problem = await limited.Content.ReadFromJsonAsync<ProblemDetails>(
+            ApiJson.Options,
             cancellation.Token);
         Assert.Equal(429, problem?.Status);
         Assert.Equal(HttpStatusCode.Accepted, independent.StatusCode);

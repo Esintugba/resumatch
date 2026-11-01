@@ -88,7 +88,9 @@ public sealed class JobApplicationService : IJobApplicationService
 
         if (alreadyExists)
         {
-            throw new ConflictException(DuplicateApplicationMessage);
+            throw new ConflictException(
+                DuplicateApplicationMessage,
+                ApiErrorCodes.DuplicateApplication);
         }
 
         var application = request.ToEntity();
@@ -108,13 +110,17 @@ public sealed class JobApplicationService : IJobApplicationService
         }
         catch (DbUpdateException exception) when (IsDuplicateApplication(exception))
         {
-            throw new ConflictException(DuplicateApplicationMessage, exception);
+            throw new ConflictException(
+                DuplicateApplicationMessage,
+                exception,
+                ApiErrorCodes.DuplicateApplication);
         }
         catch (DbUpdateException exception) when (IsOwnershipReferenceViolation(exception))
         {
             throw new ConflictException(
                 OwnershipReferenceConflictMessage,
-                exception);
+                exception,
+                ApiErrorCodes.ReferenceConflict);
         }
 
         application.JobPosting = jobPosting;
@@ -271,7 +277,8 @@ public sealed class JobApplicationService : IJobApplicationService
         {
             throw new ConflictException(
                 $"Application status cannot transition from " +
-                $"{application.Status} to {targetStatus}.");
+                $"{application.Status} to {targetStatus}.",
+                ApiErrorCodes.InvalidStatusTransition);
         }
 
         var appliedAt = ResolveAppliedAt(
@@ -315,7 +322,8 @@ public sealed class JobApplicationService : IJobApplicationService
         {
             throw new ConflictException(
                 OwnershipReferenceConflictMessage,
-                exception);
+                exception,
+                ApiErrorCodes.ReferenceConflict);
         }
 
         if (resumeChanged)

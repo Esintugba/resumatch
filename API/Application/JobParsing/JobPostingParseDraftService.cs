@@ -314,7 +314,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
                 JobPostingParseDraftStatus.Cancelled))
         {
             throw new ConflictException(
-                "The job posting parse draft cannot be cancelled from its current status.");
+                "The job posting parse draft cannot be cancelled from its current status.",
+                ApiErrorCodes.ParseDraftStateInvalid);
         }
 
         draft.Status = JobPostingParseDraftStatus.Cancelled;
@@ -387,7 +388,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
         if (draft.Status != JobPostingParseDraftStatus.Ready)
         {
             throw new ConflictException(
-                "Only a ready job posting parse draft can be confirmed.");
+                "Only a ready job posting parse draft can be confirmed.",
+                ApiErrorCodes.ParseDraftStateInvalid);
         }
 
         if (draft.ExpiresAt is null || draft.ExpiresAt <= confirmedAt)
@@ -399,7 +401,9 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
             draft.UpdatedAt = confirmedAt;
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            throw new ConflictException("The job posting parse draft has expired.");
+            throw new ConflictException(
+                "The job posting parse draft has expired.",
+                ApiErrorCodes.ParseDraftStateInvalid);
         }
 
         EnsureParserVersionIsSupported(draft.ParserVersion);
@@ -633,7 +637,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
                 !Enum.IsDefined(skill.Category))
             {
                 throw new ConflictException(
-                    "A selected skill identity changed; request a new parse draft.");
+                    "A selected skill identity changed; request a new parse draft.",
+                    ApiErrorCodes.ParseDraftOutdated);
             }
         }
     }
@@ -661,7 +666,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
                 StringComparison.Ordinal))
         {
             throw new ConflictException(
-                "The skill dictionary changed; request a new parse draft.");
+                "The skill dictionary changed; request a new parse draft.",
+                ApiErrorCodes.ParseDraftOutdated);
         }
     }
 
@@ -681,7 +687,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
         catch (InvalidOperationException)
         {
             throw new ConflictException(
-                "The parse draft uses an unsupported parser version.");
+                "The parse draft uses an unsupported parser version.",
+                ApiErrorCodes.ParseDraftOutdated);
         }
     }
 
@@ -699,7 +706,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
                 StringComparison.Ordinal))
         {
             throw new ConflictException(
-                "The persisted parse draft snapshot is invalid.");
+                "The persisted parse draft snapshot is invalid.",
+                ApiErrorCodes.ParseDraftOutdated);
         }
     }
 
@@ -857,7 +865,8 @@ public sealed class JobPostingParseDraftService : IJobPostingParseDraftService
                     throw new TooManyRequestsException(
                         "A recent parse already used this job posting content. " +
                         "Retry after the cooldown period.",
-                        retryAfter);
+                        retryAfter,
+                        ApiErrorCodes.ParseCooldown);
                 }
             }
         }

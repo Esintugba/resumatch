@@ -200,7 +200,9 @@ public sealed class LanguageService : ILanguageService
 
         if (duplicateExists)
         {
-            throw new ConflictException(DuplicateLanguageMessage);
+            throw new ConflictException(
+                DuplicateLanguageMessage,
+                ApiErrorCodes.DuplicateLanguage);
         }
     }
 
@@ -212,7 +214,10 @@ public sealed class LanguageService : ILanguageService
         }
         catch (DbUpdateException exception) when (IsNormalizedNameConflict(exception))
         {
-            throw new ConflictException(DuplicateLanguageMessage, exception);
+            throw new ConflictException(
+                DuplicateLanguageMessage,
+                exception,
+                ApiErrorCodes.DuplicateLanguage);
         }
     }
 

@@ -20,7 +20,8 @@ public static class ResumeSectionLimitGuard
         if (limitReached)
         {
             throw new ConflictException(
-                $"A resume cannot contain more than {limit} {sectionName}.");
+                $"A resume cannot contain more than {limit} {sectionName}.",
+                ApiErrorCodes.SectionLimitReached);
         }
     }
 }

@@ -85,6 +85,7 @@ public sealed class GlobalExceptionHandlerTests
                 ["title"] = "Payload Too Large",
                 ["status"] = "413",
                 ["detail"] = "The request body exceeds the permitted size.",
+                ["code"] = "payload_too_large",
                 ["instance"] = "/api/resumes"
             },
             body.EnumerateObject().ToDictionary(

@@ -312,10 +312,14 @@ public sealed class JobPostingService : IJobPostingService
                 return jobPosting.ToResponse();
 
             case JobPostingSkillProvenanceStatus.Manual:
-                throw new ConflictException(ManualSkillAdoptionConflictMessage);
+                throw new ConflictException(
+                    ManualSkillAdoptionConflictMessage,
+                    ApiErrorCodes.SkillProvenanceLocked);
 
             case JobPostingSkillProvenanceStatus.LegacyAiUnknown:
-                throw new ConflictException(LegacySkillAdoptionConflictMessage);
+                throw new ConflictException(
+                    LegacySkillAdoptionConflictMessage,
+                    ApiErrorCodes.SkillProvenanceLocked);
 
             case JobPostingSkillProvenanceStatus.AiActive:
             case JobPostingSkillProvenanceStatus.AiStale:
@@ -324,7 +328,8 @@ public sealed class JobPostingService : IJobPostingService
 
             default:
                 throw new ConflictException(
-                    "The job posting skill provenance cannot be manually adopted.");
+                    "The job posting skill provenance cannot be manually adopted.",
+                    ApiErrorCodes.SkillProvenanceLocked);
         }
 
         jobPostingSkill.ProvenanceStatus =
@@ -402,7 +407,9 @@ public sealed class JobPostingService : IJobPostingService
 
         if (hasApplications)
         {
-            throw new ConflictException(DeleteConflictMessage);
+            throw new ConflictException(
+                DeleteConflictMessage,
+                ApiErrorCodes.ResourceInUse);
         }
 
         _dbContext.JobPostings.Remove(jobPosting);
@@ -413,7 +420,10 @@ public sealed class JobPostingService : IJobPostingService
         }
         catch (DbUpdateException exception) when (IsForeignKeyViolation(exception))
         {
-            throw new ConflictException(DeleteConflictMessage, exception);
+            throw new ConflictException(
+                DeleteConflictMessage,
+                exception,
+                ApiErrorCodes.ResourceInUse);
         }
     }
 
@@ -502,7 +512,8 @@ public sealed class JobPostingService : IJobPostingService
             jobPostingSkill.SourceParseDraftSkillId is null)
         {
             throw new ConflictException(
-                "The AI skill source provenance is incomplete and cannot be adopted.");
+                "The AI skill source provenance is incomplete and cannot be adopted.",
+                ApiErrorCodes.SkillProvenanceLocked);
         }
     }
 

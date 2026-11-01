@@ -108,21 +108,24 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             {
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Unauthorized",
-                Detail = "Authentication is required or the supplied credentials are invalid."
+                Detail = "Authentication is required or the supplied credentials are invalid.",
+                Extensions = { ["code"] = ApiErrorCodes.Unauthorized }
             },
 
             ConflictException conflictException => new ProblemDetails
             {
                 Status = StatusCodes.Status409Conflict,
                 Title = "Conflict",
-                Detail = conflictException.Message
+                Detail = conflictException.Message,
+                Extensions = { ["code"] = conflictException.Code }
             },
 
             NotFoundException notFoundException => new ProblemDetails
             {
                 Status = StatusCodes.Status404NotFound,
                 Title = "Not Found",
-                Detail = notFoundException.Message
+                Detail = notFoundException.Message,
+                Extensions = { ["code"] = ApiErrorCodes.NotFound }
             },
 
             PreconditionRequiredException preconditionRequiredException =>
@@ -130,7 +133,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status428PreconditionRequired,
                     Title = "Precondition Required",
-                    Detail = preconditionRequiredException.Message
+                    Detail = preconditionRequiredException.Message,
+                    Extensions = { ["code"] = ApiErrorCodes.PreconditionRequired }
                 },
 
             TooManyRequestsException tooManyRequestsException =>
@@ -138,7 +142,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Too Many Requests",
-                    Detail = tooManyRequestsException.Message
+                    Detail = tooManyRequestsException.Message,
+                    Extensions = { ["code"] = tooManyRequestsException.Code }
                 },
 
             DbUpdateConcurrencyException => new ProblemDetails
@@ -146,7 +151,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 Status = StatusCodes.Status412PreconditionFailed,
                 Title = "Precondition Failed",
                 Detail = "The resource was modified by another operation. " +
-                         "Reload it and retry with the latest ETag."
+                         "Reload it and retry with the latest ETag.",
+                Extensions = { ["code"] = ApiErrorCodes.PreconditionFailed }
             },
 
             DbUpdateException dbUpdateException when IsDuplicateEmailViolation(dbUpdateException) =>
@@ -154,7 +160,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = DuplicateEmailMessage
+                    Detail = DuplicateEmailMessage,
+                    Extensions = { ["code"] = ApiErrorCodes.RegistrationRejected }
                 },
 
             DbUpdateException dbUpdateException when IsResumeSkillDuplicate(dbUpdateException) =>
@@ -162,7 +169,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = DuplicateResumeSkillMessage
+                    Detail = DuplicateResumeSkillMessage,
+                    Extensions = { ["code"] = ApiErrorCodes.DuplicateSkill }
                 },
 
             DbUpdateException dbUpdateException when IsProjectSkillDuplicate(dbUpdateException) =>
@@ -170,7 +178,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = DuplicateProjectSkillMessage
+                    Detail = DuplicateProjectSkillMessage,
+                    Extensions = { ["code"] = ApiErrorCodes.DuplicateSkill }
                 },
 
             DbUpdateException dbUpdateException when IsJobPostingSkillDuplicate(dbUpdateException) =>
@@ -178,7 +187,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 {
                     Status = StatusCodes.Status409Conflict,
                     Title = "Conflict",
-                    Detail = DuplicateJobPostingSkillMessage
+                    Detail = DuplicateJobPostingSkillMessage,
+                    Extensions = { ["code"] = ApiErrorCodes.DuplicateSkill }
                 },
 
             // Raised by the server for malformed requests (bad chunked framing,
@@ -191,14 +201,16 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Validation failed",
-                Detail = validationException.Message
+                Detail = validationException.Message,
+                Extensions = { ["code"] = ApiErrorCodes.ValidationFailed }
             },
 
             _ => new ProblemDetails
             {
                 Status = StatusCodes.Status500InternalServerError,
                 Title = "Internal Server Error",
-                Detail = "An unexpected error occurred while processing the request."
+                Detail = "An unexpected error occurred while processing the request.",
+                Extensions = { ["code"] = ApiErrorCodes.InternalError }
             }
         };
 
@@ -222,7 +234,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         {
             Status = status,
             Title = string.IsNullOrEmpty(title) ? "Bad Request" : title,
-            Detail = "The request could not be processed because it was malformed or incomplete."
+            Detail = "The request could not be processed because it was malformed or incomplete.",
+            Extensions = { ["code"] = ApiErrorCodes.MalformedRequest }
         };
     }
 

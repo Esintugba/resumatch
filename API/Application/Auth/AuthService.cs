@@ -47,7 +47,8 @@ public sealed class AuthService : IAuthService
         if (emailExists)
         {
             throw new ConflictException(
-                "Registration could not be completed with the supplied information.");
+                "Registration could not be completed with the supplied information.",
+                ApiErrorCodes.RegistrationRejected);
         }
 
         var user = new User

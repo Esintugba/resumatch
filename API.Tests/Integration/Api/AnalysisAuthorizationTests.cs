@@ -124,6 +124,7 @@ public sealed class AnalysisAuthorizationTests : AnalysisApiTestBase
             $"/api/analyses/{analysisA.Id:D}",
             cancellation.Token);
         var body = await response.Content.ReadFromJsonAsync<ResumeAnalysisResponse>(
+            ApiJson.Options,
             cancellation.Token);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
