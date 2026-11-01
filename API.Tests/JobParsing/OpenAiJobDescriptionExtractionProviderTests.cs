@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -404,7 +405,10 @@ public sealed class OpenAiJobDescriptionExtractionProviderTests
     [Fact]
     public async Task ExtractAsync_TransportFailure_EmitsBoundedUnavailableMetric()
     {
-        var measurements = new List<(long Value, string[] Keys)>();
+        // The meter is process-wide and test classes run in parallel, so only
+        // measurements from this test's async flow are recorded.
+        var currentTest = new AsyncLocal<bool> { Value = true };
+        var measurements = new ConcurrentQueue<(long Value, string[] Keys)>();
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
@@ -415,9 +419,14 @@ public sealed class OpenAiJobDescriptionExtractionProviderTests
             }
         };
         listener.SetMeasurementEventCallback<long>((_, value, tags, _) =>
-            measurements.Add((
-                value,
-                tags.ToArray().Select(item => item.Key).ToArray())));
+        {
+            if (currentTest.Value)
+            {
+                measurements.Enqueue((
+                    value,
+                    tags.ToArray().Select(item => item.Key).ToArray()));
+            }
+        });
         listener.Start();
         var provider = CreateProvider(new RecordingHandler((_, _) =>
             throw new HttpRequestException("transport failure")));
@@ -433,7 +442,10 @@ public sealed class OpenAiJobDescriptionExtractionProviderTests
     [Fact]
     public async Task ExtractAsync_OptionalUsage_IsReturnedAndEmittedWithoutSensitiveLabels()
     {
-        var measurements = new List<(string Name, long Value, string[] Keys)>();
+        // The meter is process-wide and test classes run in parallel, so only
+        // measurements from this test's async flow are recorded.
+        var currentTest = new AsyncLocal<bool> { Value = true };
+        var measurements = new ConcurrentQueue<(string Name, long Value, string[] Keys)>();
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
@@ -444,10 +456,13 @@ public sealed class OpenAiJobDescriptionExtractionProviderTests
         };
         listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
         {
-            measurements.Add((
-                instrument.Name,
-                value,
-                tags.ToArray().Select(tag => tag.Key).ToArray()));
+            if (currentTest.Value)
+            {
+                measurements.Enqueue((
+                    instrument.Name,
+                    value,
+                    tags.ToArray().Select(tag => tag.Key).ToArray()));
+            }
         });
         listener.Start();
         var provider = CreateProvider(new RecordingHandler((_, _) =>

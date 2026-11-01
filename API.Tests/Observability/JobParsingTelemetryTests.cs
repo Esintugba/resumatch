@@ -8,6 +8,9 @@ public sealed class JobParsingTelemetryTests
     [Fact]
     public void ActivitySource_ProducesBoundedSpanWithoutSensitiveIdentifiers()
     {
+        // The source is process-wide and test classes run in parallel, so only
+        // activities stopped in this test's flow are captured.
+        var currentTest = new AsyncLocal<bool> { Value = true };
         Activity? captured = null;
         using var listener = new ActivityListener
         {
@@ -15,7 +18,13 @@ public sealed class JobParsingTelemetryTests
                 source.Name == JobParsingTelemetry.ActivitySourceName,
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
-            ActivityStopped = activity => captured = activity
+            ActivityStopped = activity =>
+            {
+                if (currentTest.Value)
+                {
+                    captured = activity;
+                }
+            }
         };
         ActivitySource.AddActivityListener(listener);
 
