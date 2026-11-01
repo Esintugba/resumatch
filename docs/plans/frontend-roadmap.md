@@ -1,6 +1,6 @@
 # ResuMatch frontend ve gerçek kullanıcı yol haritası
 
-Durum: taslak, karar bekliyor. İnceleme tarihi: 2026-11-01, `main` commit'i `f459c56`.
+Durum: Ana kararlar verildi, yedi karar bekliyor. İnceleme tarihi: 2026-11-01, `main` commit'i `f459c56`. `alanadi.com`, seçilecek alan adı için yer tutucudur.
 
 Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. Belgedeki hukuk notları hukuki görüş değildir. Fiyatlar kaynak listesindeki tarihte okunmuştur ve değişebilir.
 
@@ -10,9 +10,10 @@ Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. 
 - **En büyük engel:** Kodda beceri kataloğunu dolduran hiçbir yol yok. Kullanıcı özgeçmişe beceri ekleyemez ve iş eşleştirmesi anlamlı sonuç üretmez.
 - **Hesap yaşam döngüsü eksik:** Hesap silme, veri dışa aktarma, şifre değiştirme ve sıfırlama, e-posta doğrulama, rıza kaydı yok.
 - **Özgeçmiş verisi OpenAI'ye gitmiyor.** Yalnızca iş ilanının başlığı ve açıklaması gidiyor. OpenAI şu an kapalı.
-- **Önerilen sıra:** Önce API sözleşmesi ve hesap işleri, sonra frontend.
-- **Önerilen kapalı beta maliyeti:** Aylık yaklaşık 12 ABD doları (bölüm 8).
-- **Senin kararın:** On konu var, en acili kimlik doğrulama modeli ve alan adı (bölüm 8).
+- **Sıra:** Önce zorunlu backend temeli, sonra giriş → özgeçmiş → ATS analizi akışı, ardından kalan backend işleri. Beta kapısı değişmez.
+- **Maliyet:** Geliştirmede yalnızca alan adı (yılda yaklaşık 11 dolar), beta öncesi aylık yaklaşık 12 dolar (bölüm 8).
+- **Kapalı beta planı:** 21 PR, migration içeren 6 PR için ayrı onay gerekir (bölüm 7).
+- **Bekleyen:** Yedi karar (bölüm 8).
 
 ## 1. API envanteri
 
@@ -45,11 +46,11 @@ Tüm yollar `/api` altındadır. `register` ve `login` dışındaki `/api` uçla
 
 | Öncelik | Bulgu | Kanıt | Öneri |
 |---|---|---|---|
-| Engel | Beceri kataloğu boş kalıyor. `Skill` ekleyen servis, seed veya migration verisi yok. `AddResumeSkillRequest` yalnızca `SkillId` kabul ediyor. | [AddResumeSkillRequest.cs](../../API/DTOs/Skill/AddResumeSkillRequest.cs), [SkillsController.cs](../../API/Controllers/SkillsController.cs) | Katalog verisi için ayrı karar ve PR. Canlıdaki tablo içeriğine bakmadım. |
+| Engel | Beceri kataloğu boş kalıyor. `Skill` ekleyen servis, seed veya migration verisi yok. `AddResumeSkillRequest` yalnızca `SkillId` kabul ediyor. | [AddResumeSkillRequest.cs](../../API/DTOs/Skill/AddResumeSkillRequest.cs), [SkillsController.cs](../../API/Controllers/SkillsController.cs) | PR 3: Küratörlü liste ve "katalogda yok" notu. Canlıdaki tablo içeriğine bakmadım. |
 | Yüksek | Enum'lar JSON'da sayı. `JsonStringEnumConverter` yok. Tipler sayı olarak üretilir, enum sırası değişirse istemci sessizce bozulur. | [Program.cs:650](../../API/Program.cs#L650) | Kullanıcı gelmeden string enum'a geç. |
 | Yüksek | `Retry-After` tarayıcı kodundan okunamaz, CORS `WithExposedHeaders` tanımlamıyor. | [Program.cs:175](../../API/Program.cs#L175) | `Retry-After`, `ETag`, `Location` başlıklarını aç. |
 | Yüksek | Hatalarda makine kodu yok, `detail` İngilizce. Doğrulama hataları hep "The supplied value is invalid." diyor. | [GlobalExceptionHandler.cs](../../API/Infrastructure/ExceptionHandling/GlobalExceptionHandler.cs), [Program.cs:656](../../API/Program.cs#L656) | Kararlı `code` uzantısı ekle. Alan kuralları istemcide de doğrulanır. |
-| Yüksek | OpenAI kapalıyken parse isteği reddedilmiyor. Worker kapalı olduğundan draft `Pending` kalır. | [JobPostingParseDraftOptions.cs](../../API/Application/JobParsing/JobPostingParseDraftOptions.cs) | Özellik bayrağı ucu ekle veya isteği 503 ile reddet. Ekran bayrağa göre gizlenir. |
+| Yüksek | OpenAI kapalıyken parse isteği reddedilmiyor. Worker kapalı olduğundan draft `Pending` kalır. | [JobPostingParseDraftOptions.cs](../../API/Application/JobParsing/JobPostingParseDraftOptions.cs) | PR 2: 503 ve `feature_disabled`, draft oluşmaz. Ekran `GET /capabilities` ile gizlenir. |
 | Orta | Beklenmeyen 401 yanıtının gövdesi boş, ProblemDetails değil. | `AddJwtBearer` içinde `OnChallenge` yok | İstemci boş gövdeyi desteklesin. |
 | Orta | Draft yanıtlarında `eTag` yok, yalnızca `draftVersion` (`uint`) var. | [EntityTagCodec.cs](../../API/Application/Common/Concurrency/EntityTagCodec.cs) | DTO'ya `eTag` ekle, biçim istemciye sızmasın. |
 | Orta | Profil güncelleme, başvuru silme, öneri durumu güncelleme ucu yok. | Controller listesi | Kapsama göre ekle. |
@@ -61,7 +62,7 @@ Tüm yollar `/api` altındadır. `register` ve `login` dışındaki `/api` uçla
 
 ## 2. Gerçek kullanıcı eksikleri
 
-Önem: **P0** kapalı betadan önce, **P1** açık lansmandan önce, **P2** lansman sonrası. Kapsam: S 1 PR, M 2 PR, L 3 veya daha fazla PR.
+Önem: **P0** kapalı beta çıkış şartı, **P1** açık lansmandan önce, **P2** lansman sonrası. Kapsam: S 1 PR, M 2 PR, L 3 veya daha fazla PR.
 
 | Konu | Mevcut durum | Önem | Kapsam | Plan |
 |---|---|---|---|---|
@@ -69,8 +70,8 @@ Tüm yollar `/api` altındadır. `register` ve `login` dışındaki `/api` uçla
 | Veri dışa aktarma | Yok. | P0 | S | Tek JSON dosyası: `GET /account/export`. |
 | Şifre değiştirme | Yok. | P0 | S | Mevcut parolayı iste, oturumları düşür. |
 | Şifre sıfırlama | Yok. E-posta altyapısı da yok. | P0 | M | Tek kullanımlık, kısa ömürlü, özetlenmiş token. Hesabın varlığını açıklamayan yanıt. |
-| Oturum iptali | Yok. Yalnızca `IsActive` kontrolü var. Parola değişse bile token en çok 60 dk geçerli kalır. | P0 | S | `SecurityStamp` claim'i. [`OnTokenValidated`](../../API/Program.cs#L495) zaten her istekte DB'ye gidiyor. |
-| E-posta doğrulama | `IsEmailVerified` alanı var, hep `false` kalıyor. | Beta P1, lansman P0 | M | Doğrulama bağlantısı. Lansmanda zorunlu. |
+| Oturum iptali | Yok. Yalnızca `IsActive` kontrolü var. Parola değişse bile token en çok 60 dk geçerli kalır. | P0 | M | Refresh oturumları ve `SecurityStamp` (bölüm 4). |
+| E-posta doğrulama | `IsEmailVerified` alanı var, hep `false` kalıyor. | P0 | M | Doğrulama bağlantısı, doğrulanmamış hesaba kısıt. |
 | Rıza ve gizlilik kaydı | Yok. | P0 | S | Kullanım şartı ve aydınlatma metni için sürüm, zaman ve kayıt. Pazarlama izni ayrı. |
 | Log'larda kişisel veri | Log şablonlarında e-posta, ad, telefon veya IP bulamadım. `Path` içinde GUID'ler var. Hassas EF loglama açık değil. | P2 | S | `Microsoft.EntityFrameworkCore` log seviyesini `Warning` yap. |
 | OpenTelemetry | Varsayılanda kapalı (`Observability:Enabled=false`). ASP.NET ve HttpClient izleme etiketleri bu incelemede doğrulanmadı. | P1 | S | OTLP açılmadan önce etiketleri test et, IP ve sorgu dizesini dışla. |
@@ -117,11 +118,15 @@ Kullanıcı kimliği, e-posta, ad ve özgeçmiş alanı istek gövdesinde yok.
 
 ### OpenAI açılmadan önce
 
+Bu adımlar betada uygulanmaz, OpenAI betada kapalıdır.
+
 1. Parse düğmesinin yanında "Bu metin OpenAI'ye gönderilir" uyarısı, ilk kullanımda onay.
 2. Hizmet alan olarak aydınlatma metnine ekleme, yurt dışı aktarım değerlendirmesi.
 3. `PurgeEnabled`, bütçe, sabit model sürümü ve OpenAI harcama limiti.
 
 ## 4. Kimlik doğrulama tasarımı
+
+**Karar: Seçenek A.** Access token bellekte, refresh token HttpOnly cookie'de. Yapı `alanadi.com` ve `api.alanadi.com` üzerine kuruludur. `alanadi.com` seçilecek alan adı için yer tutucudur.
 
 ### Mevcut durum
 
@@ -129,41 +134,40 @@ Kullanıcı kimliği, e-posta, ad ve özgeçmiş alanı istek gövdesinde yok.
 - Refresh token ve çıkış ucu yok.
 - `AllowCredentials` ayarı var, cookie okuma kodu yok.
 
-### onrender.com ve cookie
+### Neden özel alan adı gerekli
 
-- `onrender.com` [Public Suffix List](https://publicsuffix.org/list/public_suffix_list.dat) içinde. Bu yüzden `a.onrender.com` ile `b.onrender.com` **farklı sitedir**.
-- `Domain=.onrender.com` ile cookie ayarlanamaz.
-- Frontend ve API iki ayrı `onrender.com` adresinde kalırsa cookie üçüncü taraf sayılır: Safari varsayılan olarak korur, Firefox site başına ayırır, Chrome varsayılanda engellemez. Güvenilir değildir.
-- **Cookie tabanlı model için özel alan adı şart:** `app.ornek.com` ve `api.ornek.com` aynı sitedir.
+- `onrender.com` [Public Suffix List](https://publicsuffix.org/list/public_suffix_list.dat) içinde, bu yüzden iki ayrı `onrender.com` adresi farklı sitedir ve cookie üçüncü taraf sayılır.
+- `alanadi.com` ile `api.alanadi.com` aynı sitedir, cookie birinci taraf kalır.
 
-### Seçenekler
+### Tasarım
 
-| | A. Bellekte access, HttpOnly cookie'de refresh | B. HttpOnly cookie'de oturum | C. localStorage'da token | D. Yalnızca bellekte token |
+| Konu | Karar |
+|---|---|
+| Access token | JWT, 15 dakika, yalnızca bellekte. Disk veya `localStorage` kullanılmaz. |
+| Refresh token | Rastgele 256 bit. Veritabanında yalnızca SHA-256 özeti tutulur. Mutlak ömür 30 gün, boşta kalma sınırı 14 gün. |
+| Cookie | `__Host-resumatch_refresh`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, `Domain` yok. Yalnızca `api.alanadi.com` görür. |
+| Rotasyon | Her `POST /auth/refresh` eski token'ı tüketir, aynı oturum ailesinde yenisini verir. Satır kilidiyle tek kazanan sağlanır. |
+| Tekrar kullanım tespiti | Tüketilmiş token tekrar gelirse aile iptal edilir, kullanıcı yeniden giriş yapar. Güvenlik olayı log'lanır, IP yazılmaz. |
+| Yarış durumu | İki sekme aynı anda yenilerse yanlış alarm olmasın diye kısa kabul penceresi (10 sn) ve sekmeler arası Web Locks kullanılır. |
+| Oturum iptali | `POST /auth/logout`, `POST /auth/logout-all`, `GET /auth/sessions`, `DELETE /auth/sessions/{id}`. |
+| Anında iptal | JWT'de `SecurityStamp` claim'i. Parola değişimi, sıfırlama, tüm oturumlardan çıkış ve hesap silme bunu değiştirir. Token [`OnTokenValidated`](../../API/Program.cs#L495) içinde karşılaştırılır. |
+| CSRF | Üç katman: `SameSite=Strict`, cookie okuyan uçlarda `Origin` izin listesi ve preflight zorlayan `X-ResuMatch-CSRF: 1` başlığı. Cookie yalnızca refresh ve logout uçlarında okunur. |
+| CORS | `AllowCredentials=true`, tek origin `https://alanadi.com`. İzinli başlıklara CSRF başlığı eklenir. |
+| Sayfa açılışı | Uygulama `POST /auth/refresh` çağırır. 401 dönerse oturum yoktur. |
+| Çoklu sekme | `BroadcastChannel` ile çıkış ve oturum değişimi yayılır. |
+| Yerel geliştirme | Vite proxy `/api` isteğini yerel API'ye yönlendirir, istek aynı origin olur. Cookie adı ayarlanabilir, `Secure` zorunluluğu yalnızca Production dışında gevşer. |
+
+**Tehdit sınırı:** A, XSS'i ortadan kaldırmaz. Saldırgan sayfa açıkken istek yaptırabilir, ama refresh token'ı çalıp oturumu dışarı taşıyamaz. CSP ve bağımlılık kuralları bu yüzden yine zorunludur.
+
+### Değerlendirilen seçenekler
+
+| | A. Bellek ve HttpOnly refresh (seçildi) | B. HttpOnly oturum cookie'si | C. localStorage | D. Yalnızca bellek |
 |---|---|---|---|---|
-| XSS ile uzun süreli hesap ele geçirme | Zor, refresh okunamaz | Zor | **Kolay, token okunur ve dışarı gönderilir** | Zor |
-| XSS sırasında istek yaptırma | Mümkün | Mümkün | Mümkün | Mümkün |
-| CSRF | Korunmalı, yalnızca refresh ucu | Korunmalı, tüm yazma uçları | Etkisiz | Etkisiz |
+| XSS ile token çalma | Zor | Zor | **Kolay** | Zor |
+| CSRF | Refresh ve logout korunur | Tüm yazma uçları korunur | Etkisiz | Etkisiz |
 | Sayfa yenileyince | Sessiz yenileme | Oturum sürer | Oturum sürer | **Tekrar giriş** |
-| Oturum iptali | Sunucu tarafı, anında | Sunucu tarafı | Token süresi kadar gecikme | Token süresi kadar gecikme |
-| Özel alan adı gerekir mi | **Evet** | **Evet** | Hayır | Hayır |
-| Migration | Evet, refresh tablosu | Olası | Hayır | Hayır |
-| Backend işi | M | M | Yok | Yok |
-
-**Öneri: A.** Özgeçmiş kişisel veri içerdiği için XSS etkisini en iyi sınırlayan modeldir. Refresh token'ı döndürülür, özeti saklanır, tekrar kullanımda oturum ailesi kapatılır. Access süresi 15 dakikaya iner. Cookie: `__Host-` önekli, `HttpOnly`, `Secure`, `SameSite=Lax`, yalnızca `api` alan adına ait. Refresh ucu `Origin` başlığını da doğrular.
-
-**Hızlı başlangıç gerekirse: D.** Altyapı değiştirmez, daha sonra A'ya geçilebilir. Bedeli sayfa yenilemede tekrar giriş ve 60 dakikalık oturumdur.
-
-### localStorage (C) seçilirse
-
-Risk açıktır: Sayfada çalışan tek bir kötü niyetli betik token'ı okuyup dışarı yollayabilir. Bağımlılık saldırısı veya bir XSS yeterlidir. Token süresi dolana kadar hesap ele geçirilir ve kullanıcı bunu kapatamaz.
-
-Zorunlu önlemler:
-
-- Katı CSP: `script-src 'self'`, `connect-src` yalnızca API. Bu, token'ın dışarı gönderilmesini de zorlaştırır.
-- `dangerouslySetInnerHTML` yasak, ESLint ile zorunlu.
-- Üçüncü taraf betik yok. Bağımlılık sayısı düşük, lockfile zorunlu, CI'da `npm audit`.
-- Token süresi en çok 15 dakika, bu yüzden yenileme sorunu ayrıca çözülmeli.
-- `SecurityStamp` ile sunucu tarafı iptal.
+| Oturum iptali | Anında | Anında | Stamp ile | Stamp ile |
+| Özel alan adı | Gerekli | Gerekli | Gerekmez | Gerekmez |
 
 ## 5. Frontend mimarisi
 
@@ -223,7 +227,7 @@ Ekranlar rota bazında tembel yüklenir. Dil rotada değil, kullanıcı tercihin
 
 ### Davranışlar
 
-**Soğuk açılış.** Ölçülen değerler: `/health/live` 14 sn, `/health/ready` 38 sn. Render yaklaşık bir dakikaya kadar söylüyor.
+**Soğuk açılış.** Geliştirmede ve Free planda geçerlidir. Ölçülen değerler: `/health/live` 14 sn, `/health/ready` 38 sn. Render yaklaşık bir dakikaya kadar söylüyor.
 
 - Uygulama açılışta `/health/live` çağırır. 3 sn içinde yanıt yoksa "Sunucu uyanıyor, en fazla bir dakika sürebilir" ekranı ve geçen süre gösterilir.
 - Ağ hataları ve 502/503/504 için yalnızca `GET` üstel gecikmeyle en çok 90 sn yeniden denenir.
@@ -283,7 +287,8 @@ Kullanıcıya `detail` değil, `code` ile çevrilmiş metin gösterilir. Destek 
 | Kök dizin | `web` |
 | Derleme | `npm ci && npm run build` |
 | Yayın dizini | `web/dist` (Blueprint yolu kuruluşta doğrulanmalı) |
-| Ortam | `VITE_API_BASE_URL`, `NODE_VERSION`. Gizli değer yok. |
+| Ortam | `VITE_API_BASE_URL=https://api.alanadi.com`, `NODE_VERSION`. Gizli değer yok. |
+| Alan adı | Static Site'ta `alanadi.com`, web service'te `api.alanadi.com`. Render kök alan adı eklenince `www` adresini de ekler ve köke yönlendirir. |
 | Otomatik deploy | Kapalı. CI, API hazır olduktan sonra tetikler. |
 
 **SPA rewrite:** Kural `/*` → `/index.html`, Action `Rewrite`. Render, var olan dosyalara kuralı uygulamaz, bu yüzden `/assets` etkilenmez.
@@ -297,7 +302,7 @@ Rewrite ile API'yi aynı adrese vekillemeye güvenmiyorum: Doküman harici hedef
 `/*` için:
 
 ```text
-Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://API_ADRESI; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://api.alanadi.com; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 Strict-Transport-Security: max-age=31536000
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
@@ -312,11 +317,11 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ### API ayarları
 
-- `HttpSecurity__AllowedOrigins__0=https://app.ornek.com`, tam eşleşme, joker yok.
+- `HttpSecurity__AllowedOrigins__0=https://alanadi.com`, tam eşleşme, joker yok.
 - Kod değişikliği: `WithExposedHeaders("ETag", "Retry-After", "Location")`.
-- `AllowCredentials` yalnızca A veya B seçilirse `true`.
+- `HttpSecurity__AllowCredentials=true`.
 - **`/openapi` canlıda kapalı kalır.**
-- Özel alan adına geçince `AllowedHosts` ve `PRODUCTION_URL` güncellenir.
+- `AllowedHosts=api.alanadi.com`, `PRODUCTION_URL=https://api.alanadi.com`.
 - Özel alan adından sonra iki istemci ve sahte başlık testleri **tekrarlanır**. Render dokümanı Cloudflare vekillemesinin ayrıca dikkat istediğini söylüyor. Kendi Cloudflare hesabında vekilleme açılırsa `CF-Connecting-IP` güveni yeniden değerlendirilmelidir.
 
 ### CI değişiklikleri
@@ -336,85 +341,96 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ## 7. Yol haritası
 
-Her satır tek PR'dır. **M** migration içerir ve uygulanmadan önce onayın gerekir.
+Her satır tek PR'dır. Kapalı beta için 21 PR vardır. **Migration içeren her PR, migration uygulanmadan önce ayrıca onayını ister.** Alan adı yayına alınana kadar ekranlar yerelde geliştirilir, ama backend PR'ları merge edilince canlı API'ye deploy olur.
 
-### Aşama 0: API sözleşmesi
+### Aşama A: Zorunlu backend temeli
 
-| # | PR | Kapsam |
+| # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
+|---|---|---|---|---|---|
+| 1 | API sözleşmesi | Hayır | Evet | Sonraki her PR buna dayanır, davranış değil biçim değiştirir | String enum, hata `code`, `ProblemDetails` tipleri, `Retry-After` ve `ETag` için CORS, draft `eTag`, `/api` için `no-store` |
+| 2 | Kapalı özellik yanıtı | Hayır | Evet | Parse davranışını değiştirir, kendi testleri olur | `GET /capabilities`, OpenAI kapalıyken `POST .../parse` 503 ve `feature_disabled` kodu, draft oluşturmaz |
+| 3 | Beceri kataloğu | **Evet** | Evet | Veri ve şema değişikliği, ayrı onay ister | Küratörlü liste, "katalogda yok" notu |
+| 4 | Oturum temeli | **Evet** | Evet | Tablo ve token kuralları, cookie'den bağımsız test edilir | Refresh oturumları, rotasyon, tekrar kullanım, `SecurityStamp`, logout, oturum listesi, 15 dk access |
+| 5 | Cookie ve CSRF | Hayır | Evet | Tarayıcı güvenlik yüzeyi, ayrı inceleme gerekir | HttpOnly cookie, `Origin` ve başlık kontrolü, CORS kimlik bilgisi |
+
+### Aşama B: İnce dikey akış
+
+Hedef: Yerelde giriş → özgeçmiş → ATS analizi uçtan uca çalışır.
+
+| # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
+|---|---|---|---|---|---|
+| 6 | Web iskeleti ve sözleşme CI'ı | Hayır | Evet | Ürün kodu yok, araç zinciri tek başına doğrulanır | `web/`, lint, test, tip üretimi, API istemcisi, `web-checks`, `api-contract`, Dependabot |
+| 7 | Uygulama kabuğu ve giriş | Hayır | Evet | Tüm ekranların ortak temeli | Router, i18n, tasarım token'ları, hata ve 429 işleme, cold start, giriş, kayıt, sessiz yenileme |
+| 8 | Özgeçmiş çekirdeği | Hayır | Evet | Dikey akışın veri kısmı | Liste, ana bilgiler, iletişim, deneyim, eğitim, beceri, 412 akışı |
+| 9 | ATS analizi ve ilk E2E | Hayır | Evet | Dikey akışı kapatır, kanıtı Playwright üretir | Analiz sonucu, `web-e2e`, axe, giriş → özgeçmiş → analiz testi |
+
+### Aşama C: Beta kapısı backend işleri
+
+Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
+
+| # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
+|---|---|---|---|---|---|
+| 10 | Rıza ve davetli kayıt | **Evet** | Evet | Kayıt kapısını tek yerde değiştirir | Politika sürümü, kabul kaydı, yeni sürümde yeniden onay, davet kodu, gizlilik ve şartlar sayfaları |
+| 11 | E-posta ve doğrulama | **Evet** | Evet | Gönderici altyapısı, PR 12 buna dayanır | Gönderici soyutlaması, yerelde sahte gönderici, doğrulama bağlantısı, doğrulanmamış hesaba kısıt |
+| 12 | Parola ve profil | **Evet** | Evet | Hesap güvenliği, token tablosu ekler | Değiştirme, sıfırlama, tüm oturumları düşürme, profil güncelleme |
+| 13 | Dışa aktarma ve hesap silme | **Evet** | Evet | Aynı veri haritasını kullanır, birlikte incelenmeli | JSON dışa aktarma, geri alma süreli silme, AI defteri anonimleştirme, ayarlar ekranı |
+| 14 | Saklama ve işletme ayarları | Hayır | Evet | Davranışı yapılandırma ile değiştirir | Purge açma, analiz hız sınırı, EF log seviyesi |
+
+### Aşama D: Kalan ürün ekranları
+
+| # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
+|---|---|---|---|---|---|
+| 15 | Kalan özgeçmiş bölümleri | Hayır | Evet | Tekrar eden formlar, PR 8'den sonra küçük | Proje, sertifika, dil, bağlantı, sıralama |
+| 16 | İş ilanı ve eşleştirme | Hayır | Evet | Ayrı alan, yalnızca veriye bağlı | İlan CRUD, eşleştirme sonucu. Parse düğmesi gizli. |
+| 17 | Başvuru takibi | Hayır | Evet | Durum geçişleri kendi akışıdır | Liste, filtre, detay, durum geçişleri |
+| 18 | Erişilebilirlik ve mobil turu | Hayır | Evet | Tüm ekranları kesen kalite kapısı | Playwright kritik akışlar, axe, 360 px, NVDA turu |
+
+### Aşama E: Yayın ve beta hazırlığı
+
+| # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
+|---|---|---|---|---|---|
+| 19 | Üretim yayını | Hayır | Evet | Alan adına bağlı tek değişiklik | Static Site, `alanadi.com`, `api.alanadi.com`, CSP, CORS, deploy sırası, iki istemci testini yenileme |
+| 20 | Yedek ve geri yükleme runbook'u | Hayır | Evet | İşletme kanıtı, kod değil | Neon Launch ayarı, geri yükleme adımları, tatbikat sonucu |
+| 21 | Hukuki metinlerin yayını | Hayır | Evet | Avukat görüşüne bağlı, zamanı dışarıdan belirlenir | Onaylı metinler ve sürüm kaydı |
+
+### Beceri kataloğu tasarımı (PR 3)
+
+- **Birincil kaynak: Kendi küratörlü listemiz.** Yaklaşık 300 ile 500 teknik ve mesleki beceri, repoda sürümlenen tek dosya. Lisans riski yoktur.
+- **"Katalogda yok" notu:** `Resume` üzerinde kısa serbest metin alanı. Özgeçmişte görünür, analiz ve eşleştirmeye girmez.
+- **Kullanıcı girdisi kataloğa otomatik eklenmez.** Katalog yalnızca PR ile değişir.
+- Analiz motoru değişmez.
+
+| Dış kaynak | Lisans | Kullanım önerisi |
 |---|---|---|
-| 1 | String enum JSON | Beta |
-| 2 | CORS açık başlıklar, `/api` için `no-store` | Beta |
-| 3 | Hata `code` alanı, `ProblemDetails` yanıt tipleri | Beta |
-| 4 | Draft `eTag` alanı | Beta |
-| 5 | Özellik bayrakları ucu, OpenAI kapalıyken parse reddi | Beta |
-| 6 | Analiz hız sınırı | Beta |
-| 7 | Beceri kataloğu verisi **M** | Beta |
+| [ESCO](https://esco.ec.europa.eu/en/use-esco/download) | Karar 2011/833/EU: Ücretsiz yeniden kullanım, kaynak belirtilerek | Listeyi denetlemek için referans. Türkçe desteği doğrulanamadı. |
+| [O\*NET](https://www.onetcenter.org/license_db.html) | CC BY 4.0: Atıf, lisans bağlantısı, değişiklik bildirimi, marka kuralı | ABD odaklı referans |
 
-### Aşama 1: Hesap ve uyum
+Dış kaynaktan satır alınırsa `THIRD_PARTY_NOTICES.md` ile atıf eklenir. İlk sürümde önerim satır almamaktır.
 
-| # | PR | Kapsam |
-|---|---|---|
-| 8 | Saklama, yedek ve geri yükleme runbook'u, tatbikat | Beta |
-| 9 | `SecurityStamp` ve oturum iptali **M** | Beta |
-| 10 | Seçilen auth modeli, refresh akışı **M** | Beta |
-| 11 | Şifre değiştirme, profil güncelleme | Beta |
-| 12 | Rıza ve politika sürümü kaydı **M** | Beta |
-| 13 | Davetli kayıt | Beta |
-| 14 | E-posta gönderici soyutlaması | Beta |
-| 15 | Şifre sıfırlama **M** | Beta |
-| 16 | Veri dışa aktarma | Beta |
-| 17 | Hesap silme **M** | Beta |
-| 18 | Purge ve log seviyesi ayarları | Beta |
+### Kapalı beta çıkış şartları
 
-### Aşama 2: Frontend temeli
+Tümü sağlanmadan davet gönderilmez:
 
-| # | PR | Kapsam |
-|---|---|---|
-| 19 | `web/` iskeleti, lint, test altyapısı | Beta |
-| 20 | CI `web-checks`, `api-contract`, Dependabot | Beta |
-| 21 | Tip üretimi, API istemcisi, hata dönüşümü, cold start | Beta |
-| 22 | Düzen, i18n, tasarım token'ları, erişilebilirlik temeli | Beta |
-| 23 | Static Site yayını, başlıklar, CORS ayarı | Beta |
-| 24 | Giriş, kayıt, şifre ekranları | Beta |
-| 25 | Gizlilik, şartlar, rıza ekranı | Beta |
-
-### Aşama 3: Ürün ekranları
-
-| # | PR | Kapsam |
-|---|---|---|
-| 26 | Özgeçmiş listesi ve ana bilgiler | Beta |
-| 27 | Düzenleyici: iletişim, deneyim, eğitim | Beta |
-| 28 | Düzenleyici: beceri, proje, sertifika, dil, bağlantı | Beta |
-| 29 | ATS analiz sonucu | Beta |
-| 30 | İş ilanları ve eşleştirme | Beta |
-| 31 | Başvuru takibi | Beta |
-| 32 | Ayarlar: dışa aktarma, güvenlik, hesap silme | Beta |
-| 33 | Playwright kritik akışları ve axe, `web-e2e` | Beta |
-
-### Kapalı beta çıkışı
-
-Davetli kullanıcılar, OpenAI kapalı. Şartlar:
-
-- 1 ile 33 arası tamam.
-- Hukuki metinler yayında.
-- Geri yükleme tatbikatı başarılı.
-- CSP zorlayıcı modda.
-- Canlı duman testi temiz.
+- [ ] 1 ile 21 arası PR'lar merge edildi.
+- [ ] Hesap silme, veri dışa aktarma, şifre sıfırlama, e-posta doğrulama ve rıza canlıda çalışıyor.
+- [ ] Render Starter ve Neon Launch aktif.
+- [ ] **Yedek alma ve geri yükleme denemesi başarılı, süresi kayıtlı.**
+- [ ] **Avukat görüşü alındı, metinler yayında.**
+- [ ] CSP zorlayıcı modda, kritik E2E ve axe temiz.
+- [ ] Özel alan adında iki istemci ve sahte başlık testleri geçti.
+- [ ] OpenAI kapalı, parse isteği `feature_disabled` dönüyor.
 
 ### Açık lansman
 
-| # | PR |
-|---|---|
-| 34 | E-posta doğrulama zorunluluğu **M** |
-| 35 | Hesap başına giriş koruması |
-| 36 | Parola politikası kararı |
-| 37 | Davetli kaydı kapatma, kötüye kullanım önlemleri |
-| 38 | OpenAI açma: uyarı, rıza, bütçe, canary |
-| 39 | Parse draft ekranı ve onay akışı |
-| 40 | PDF dışa aktarma (ayrı karar) |
-| 41 | Özgeçmiş kopyalama |
-| 42 | Hata izleme ve OTLP, kişisel veri denetimi |
-| 43 | Yük testi, ücretli plan doğrulaması |
+| # | PR | Migration |
+|---|---|---|
+| 22 | Hesap başına giriş koruması, parola politikası | Olası |
+| 23 | Davetli kaydı kapatma, kötüye kullanım önlemleri | Hayır |
+| 24 | OpenAI açma: uyarı, rıza, bütçe, canary, parse draft ekranı | Olası |
+| 25 | Özgeçmiş kopyalama | Hayır |
+| 26 | PDF dışa aktarma (ayrı karar) | Olası |
+| 27 | Hata izleme ve OTLP, kişisel veri denetimi | Hayır |
+| 28 | Yük testi ve plan doğrulaması | Hayır |
 
 Özgeçmiş dosyası yükleme ve ayrıştırma ayrı ürün ve gizlilik kararıdır, bu listeye dahil değildir.
 
@@ -422,12 +438,21 @@ Davetli kullanıcılar, OpenAI kapalı. Şartlar:
 
 Tutarlar ABD dolarıdır, vergi hariçtir.
 
+### Maliyet aşamaları
+
+| Aşama | Kalemler | Aylık | Yıllık eşdeğer |
+|---|---|---|---|
+| **Geliştirme** | Yalnızca `.com` alan adı. Render ve Neon ücretsiz plan. | ~0,93 | ~11,17 |
+| **Beta öncesi** | Alan adı, Render Starter (7), Neon Launch (~4), Static Site (0), Resend Free (0) | ~12 | ~140 |
+| Açık lansman başlangıcı | Beta öncesi ve gerekirse Resend Pro (20) | ~12–32 | ~140–380 |
+
+Avukat görüşü tek seferlik gider ve beta çıkış şartıdır. Burada fiyatlanmadı, teklif alınmalı. OpenAI kapalı olduğu için maliyet üretmez.
+
 ### Maliyet kalemleri
 
 | Kalem | Seçenek | Aylık | Yıllık | Not |
 |---|---|---|---|---|
 | Alan adı | `.com`, Cloudflare | ~0,93 | ~11,17 | İkincil kaynak, satın alırken doğrula |
-| Alan adı | `.com.tr` | Doğrulanmadı | Doğrulanmadı | Resmi güncel fiyat bulunamadı |
 | E-posta | Resend Free | 0 | 0 | 3.000/ay, 100/gün |
 | E-posta | Resend Pro | 20 | 240 | 50.000/ay |
 | E-posta | Postmark Basic | 15 | 180 | 10.000/ay |
@@ -437,34 +462,32 @@ Tutarlar ABD dolarıdır, vergi hariçtir.
 | Veritabanı | Neon Free | 0 | 0 | 6 saat geçmiş, zamanlanmış yedek yok |
 | Veritabanı | Neon Launch, düşük kullanım | ~4 | ~48 | Varsayım aşağıda |
 | Veritabanı | Neon Launch, sürekli açık | ~20 | ~240 | Worker açılırsa bu tarafa kayar |
-| OpenAI | Kapalı | 0 | 0 | Açılırsa bütçe kararı gerekir |
 
 **Neon varsayımı:** 1 GB depolama (0,35), 1 GB geri yükleme geçmişi (0,20), 0,25 CU ile ayda 120 aktif saat (30 CU-saat × 0,106 = 3,18). Toplam ~3,73. Sürekli açık: 182,5 CU-saat = 19,35, toplam ~19,90. Bunlar tahmindir. Ücretli planlarda aylık asgari ücret yok.
 
-### Senaryolar
+### Verilmiş kararlar
 
-| Senaryo | Aylık | Yıllık | Yorum |
-|---|---|---|---|
-| En düşük | ~1 | ~11 | Uyku ve zayıf yedek. Yalnızca arkadaş denemesi. |
-| **Önerilen kapalı beta** | **~12** | **~140** | Alan adı, Starter, Neon Launch, Resend Free |
-| Açık lansman başlangıcı | ~12–32 | ~140–380 | Üst sınır Resend Pro ile. OpenAI ve Neon kullanımı hariç. |
+| Konu | Karar |
+|---|---|
+| Kimlik doğrulama | Seçenek A: Rotasyon, tekrar kullanım tespiti, oturum iptali, CSRF dahil |
+| Alan adı | `.com`, `alanadi.com` ve `api.alanadi.com`. Ad sonra seçilecek. |
+| Beceri kataloğu | Küratörlü liste ve "katalogda yok" notu, otomatik ekleme yok |
+| Hosting zamanı | Beta öncesi Render Starter |
+| Yedekleme | Beta öncesi Neon Launch, geri yükleme denemesi beta çıkış şartı |
+| Hukuk | Avukat görüşü beta çıkış şartı |
+| OpenAI | Betada kapalı, parse isteği açık hata döner |
 
-Avukat görüşü tek seferliktir ve burada fiyatlanmadı.
+### Kalan kararlar
 
-### Kararların
-
-| # | Karar | Seçenekler | Öneri | Etkisi |
+| Karar | Önerim | Neden | Maliyet | Sonra değiştirmesi |
 |---|---|---|---|---|
-| 1 | Kimlik doğrulama | A, B, C, D (bölüm 4) | **A** | PR 10, alan adı |
-| 2 | Alan adı | `.com`, `.com.tr`, sonra almak | **`.com` şimdi** | A ve B bunsuz güvenilir çalışmaz |
-| 3 | Beceri kataloğu | Küratörlü liste, kullanıcı girişi serbest, ikisi birden | **Küratörlü liste ve "katalogda yok" notu** | PR 7. Migration onayı gerekir. |
-| 4 | Hosting | Free, Starter | **Davetli kullanıcı gelmeden Starter** | Soğuk açılış, kullanım şartı |
-| 5 | Yedekleme | Neon Launch, şifreli `pg_dump` ve depolama, ikisi | **Neon Launch 7 gün** | `pg_dump` için yeni hesap ve gizli değer gerekir |
-| 6 | E-posta | Resend, Postmark | **Resend Free ile başla** | Gönderen alan adı gerekir |
-| 7 | Hukuki yapı | Şahıs, şirket, avukat görüşü | **Beta öncesi avukat görüşü** | Veri sorumlusu kimliği, yurt dışı aktarım |
-| 8 | OpenAI zamanı | Betada kapalı, betada açık | **Betada kapalı** | PR 38 ve 39 |
-| 9 | Hesap silme | Hemen, 7 gün geri alma süresi | **7 gün** | PR 17 |
-| 10 | Veri saklama | Bölüm 2'deki öneri, farklı süreler | **Öneri** | Gizlilik metni |
+| Hosting: Starter ne zaman açılacak | PR 19 ile, davetten en az 1 hafta önce | Geliştirmede para harcamaz, yayını gerçek koşulda dener | 7/ay | **Kolay.** Plan değişir, kod değişmez. |
+| Yedekleme: Neon Launch yeterli mi | 7 gün geçmiş yeterli. Harici `pg_dump` lansman öncesi yeniden değerlendirilir. | Harici yedek ek hesap ve gizli değer ister | ~4/ay, harici yedek ek | **Kolay**, ama kaçırılan geçmiş geri gelmez. |
+| E-posta sağlayıcısı | Resend Free, `mail.alanadi.com` gönderen alan adı, SPF ve DKIM | Beta hacmine yeter, alt alan ana alan adının itibarını korur | 0. 3.000/ay üstü 20/ay. | **Kolay.** Soyutlama arkasında, DNS ve itibar yeniden kurulur. |
+| Hukuki yapı: Veri sorumlusu kim | Avukatla şahıs veya şirket yapısını netleştir | Metinler, aktarım ve sorumluluk buna bağlı | Teklif alınmalı | **Zor.** Değişirse metinler ve rıza yenilenir. |
+| OpenAI: Lansmanda açılma ölçütü | Beta geri bildirimi parse ihtiyacını gösterirse aç | Kapalı beta bu veri riskini taşımaz, ürün değeri önce ölçülür | Betada 0. Sonrası model ve bütçeye bağlı. | **Kolay** teknik olarak. Hukuki metin önceden hazır olmalı. |
+| Hesap silme biçimi | 7 gün geri alma, sonra kalıcı silme | Yanlışlıkla silmeyi kurtarır, süre gizlilik metninde yazılır | 0 | **Orta.** Şema ve metin değişir. Kalıcı silinen veri geri gelmez. |
+| Veri saklama süreleri | Bölüm 2'deki tablo, 24 ay hareketsizlik | Süresiz saklamayı bitirir, kullanıcı tarafı basit kalır | 0 | **Orta.** Kısaltmak kolay, uzatmak yeni bilgilendirme ister. |
 
 **KVKK notu:** Render, Neon, OpenAI ve e-posta sağlayıcıları yurt dışı aktarım sorusu doğurabilir. 7499 sayılı Kanun sonrası m.9'da açık rıza artık ana yol değil, sınırlı bir istisna olarak yorumlanıyor. Yeterlilik kararı ve standart sözleşme gibi yollar öne çıkıyor. Bu konuyu rıza kutusuyla çözülmüş sayma. Avukat değerlendirmesi gerekir.
 
@@ -475,7 +498,7 @@ Render:
 - [Static Sites](https://render.com/docs/static-sites)
 - [Redirects and Rewrites](https://render.com/docs/redirects-rewrites)
 - [Static Site Headers](https://render.com/docs/static-site-headers)
-- [Custom Domains](https://render.com/docs/custom-domains)
+- [Custom Domains](https://render.com/docs/custom-domains): Kök alan adı DNS kaydı sağlayıcı rehberinden kurulumda alınacak.
 - [Free instances](https://render.com/docs/free)
 - [Blueprint spec](https://render.com/docs/blueprint-spec)
 - [Pricing](https://render.com/pricing): Web service fiyatları sayfanın ham metninden okundu.
@@ -496,6 +519,13 @@ OpenAI:
 
 - [Data controls](https://developers.openai.com/api/docs/guides/your-data)
 
+Beceri verisi:
+
+- [ESCO download](https://esco.ec.europa.eu/en/use-esco/download)
+- [ESCO FAQ](https://esco.ec.europa.eu/en/about-esco/faq)
+- [Karar 2011/833/EU](https://eur-lex.europa.eu/eli/dec/2011/833/oj/eng)
+- [O\*NET lisansı](https://www.onetcenter.org/license_db.html)
+
 E-posta:
 
 - [Resend pricing](https://resend.com/pricing)
@@ -513,4 +543,4 @@ KVKK:
 - Render'da harici rewrite ve statik site deploy hook davranışı denenmedi.
 - `store=false` varsayılanının davranışı OpenAI referansından değil, data controls sayfasından yorumlandı.
 - OpenAI model fiyatı hesaplanmadı, model seçilmedi.
-- `.com.tr` güncel fiyatı bulunamadı.
+- ESCO'nun Türkçe sunulup sunulmadığı doğrulanamadı.
