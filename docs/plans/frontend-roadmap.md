@@ -12,7 +12,7 @@ Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. 
 - **Özgeçmiş verisi OpenAI'ye gitmiyor.** Yalnızca iş ilanının başlığı ve açıklaması gidiyor. OpenAI şu an kapalı.
 - **Sıra:** Önce zorunlu backend temeli, sonra giriş → özgeçmiş → ATS analizi akışı, ardından kalan backend işleri. Beta kapısı değişmez.
 - **Maliyet:** Geliştirmede yalnızca alan adı (yılda yaklaşık 11 dolar), beta öncesi aylık yaklaşık 12 dolar (bölüm 8).
-- **Kapalı beta planı:** 21 PR, migration içeren 7 PR için ayrı onay gerekir (bölüm 7).
+- **Kapalı beta planı:** 22 PR, migration içeren 7 PR için ayrı onay gerekir (bölüm 7).
 - **Kararlar:** Tümü verildi (bölüm 8). Veri sorumlusu yapısı avukatla netleşene kadar davet gönderilmez.
 
 ## 1. API envanteri
@@ -341,7 +341,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ## 7. Yol haritası
 
-Her satır tek PR'dır. Kapalı beta için 21 PR vardır. **Migration içeren her PR, migration uygulanmadan önce ayrıca onayını ister.** Alan adı yayına alınana kadar ekranlar yerelde geliştirilir, ama backend PR'ları merge edilince canlı API'ye deploy olur.
+Her satır tek PR'dır. Kapalı beta için 22 PR vardır. Sonradan eklenen PR 3b, diğer numaralar değişmesin diye bu adla duruyor. **Migration içeren her PR, migration uygulanmadan önce ayrıca onayını ister.** Alan adı yayına alınana kadar ekranlar yerelde geliştirilir, ama backend PR'ları merge edilince canlı API'ye deploy olur.
 
 ### Aşama A: Zorunlu backend temeli
 
@@ -352,6 +352,12 @@ Her satır tek PR'dır. Kapalı beta için 21 PR vardır. **Migration içeren he
 | 3 | Beceri kataloğu | **Evet** | Evet | Veri ve şema değişikliği, ayrı onay ister | Küratörlü liste, "katalogda yok" notu |
 | 4 | Oturum temeli | **Evet** | Evet | Tablo ve token kuralları, cookie'den bağımsız test edilir | Refresh oturumları, rotasyon, tekrar kullanım, `SecurityStamp`, logout, oturum listesi, 15 dk access |
 | 5 | Cookie ve CSRF | Hayır | Evet | Tarayıcı güvenlik yüzeyi, ayrı inceleme gerekir | HttpOnly cookie, `Origin` ve başlık kontrolü, CORS kimlik bilgisi |
+
+Aşama A'ya ek olarak:
+
+| # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
+|---|---|---|---|---|---|
+| 3b | İlana elle beceri ekleme | Hayır | Evet | OpenAI kapalıyken ilana beceri eklemenin tek yolu | Katalogdan beceri ekleme ve çıkarma. İş eşleştirmesi betada buna dayanır. |
 
 ### Aşama B: İnce dikey akış
 
@@ -373,7 +379,7 @@ Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
 | 10 | Rıza ve davetli kayıt | **Evet** | Evet | Kayıt kapısını tek yerde değiştirir | Politika sürümü, kabul kaydı, yeni sürümde yeniden onay, davet kodu, gizlilik ve şartlar sayfaları |
 | 11 | E-posta ve doğrulama | **Evet** | Evet | Gönderici altyapısı, PR 12 buna dayanır | Gönderici soyutlaması, yerelde sahte gönderici, doğrulama bağlantısı, doğrulanmamış hesaba kısıt |
 | 12 | Parola ve profil | **Evet** | Evet | Hesap güvenliği, token tablosu ekler | Değiştirme, sıfırlama, tüm oturumları düşürme, profil güncelleme |
-| 13 | Dışa aktarma ve hesap silme | **Evet** | Evet | Aynı veri haritasını kullanır, birlikte incelenmeli | JSON dışa aktarma, 7 gün geri alma, kalıcı silme işi, AI defteri anonimleştirme, ayarlar ekranı |
+| 13 | Dışa aktarma ve hesap silme | **Evet** | Evet | Aynı veri haritasını kullanır, birlikte incelenmeli | JSON dışa aktarma (`unlistedSkillsNote` dahil), 7 gün geri alma, kalıcı silme işi, AI defteri anonimleştirme, ayarlar ekranı |
 | 14 | Saklama ve işletme ayarları | **Evet** | Evet | Davranışı yapılandırma ile değiştirir, uyarı kaydı ekler | Purge açma, analiz hız sınırı, EF log seviyesi, `/api` için `no-store`, draft `eTag` alanı, hareketsizlik uyarısı ve silme |
 
 ### Aşama D: Kalan ürün ekranları
@@ -413,7 +419,8 @@ Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
 ### Beceri kataloğu tasarımı (PR 3)
 
 - **Birincil kaynak: Kendi küratörlü listemiz.** Yaklaşık 300 ile 500 teknik ve mesleki beceri, repoda sürümlenen tek dosya. Lisans riski yoktur.
-- **"Katalogda yok" notu:** `Resume` üzerinde kısa serbest metin alanı. Özgeçmişte görünür, analiz ve eşleştirmeye girmez.
+- **"Katalogda yok" notu:** `Resume` üzerinde düz metin alanı, en çok 500 karakter. Özgeçmişin ETag yapısına bağlıdır ve PR 13 veri dışa aktarmasına dahildir. Analiz ve eşleştirmeye girmez.
+- **Takma adlar:** Alias tablosu yok. `JS`, `TS`, `K8s` gibi kısaltmalar arama sonucu vermez, lansman maddesidir.
 - **Kullanıcı girdisi kataloğa otomatik eklenmez.** Katalog yalnızca PR ile değişir.
 - Analiz motoru değişmez.
 
@@ -428,7 +435,7 @@ Dış kaynaktan satır alınırsa `THIRD_PARTY_NOTICES.md` ile atıf eklenir. İ
 
 Tümü sağlanmadan davet gönderilmez:
 
-- [ ] 1 ile 21 arası PR'lar merge edildi.
+- [ ] 1 ile 21 arası PR'lar ve PR 3b merge edildi.
 - [ ] Hesap silme, veri dışa aktarma, şifre sıfırlama, e-posta doğrulama ve rıza canlıda çalışıyor.
 - [ ] Render Starter ve Neon Launch aktif.
 - [ ] **Yedek alma ve geri yükleme denemesi başarılı, süresi kayıtlı.**
@@ -450,6 +457,7 @@ Tümü sağlanmadan davet gönderilmez:
 | 26 | PDF dışa aktarma (ayrı karar) | Olası |
 | 27 | Hata izleme ve OTLP, kişisel veri denetimi | Hayır |
 | 28 | Yük testi ve plan doğrulaması | Hayır |
+| 29 | Beceri takma adları: `JS`, `TS`, `K8s`, `Golang` gibi kısaltmaların aramada kanonik kayda gitmesi | Olası |
 
 Özgeçmiş dosyası yükleme ve ayrıştırma ayrı ürün ve gizlilik kararıdır, bu listeye dahil değildir.
 

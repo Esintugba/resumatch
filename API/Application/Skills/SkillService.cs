@@ -41,19 +41,21 @@ public sealed class SkillService : ISkillService
         }
 
         IQueryable<Entities.Skill> query = _dbContext.Skills.AsNoTracking();
+        var searchTerm = string.Empty;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var normalizedSearch = search.Trim().ToLowerInvariant();
-
-            if (normalizedSearch.Length > MaximumSearchLength)
+            if (search.Trim().Length > MaximumSearchLength)
             {
                 throw new ValidationException(
                     $"Search cannot exceed {MaximumSearchLength} characters.");
             }
 
+            searchTerm = SkillSearchText.Normalize(search);
+            var term = searchTerm;
             query = query.Where(skill =>
-                skill.NormalizedName.Contains(normalizedSearch));
+                skill.NormalizedName.Contains(term) ||
+                (skill.NormalizedNameTr != null && skill.NormalizedNameTr.Contains(term)));
         }
 
         if (category.HasValue)
@@ -61,8 +63,17 @@ public sealed class SkillService : ISkillService
             query = query.Where(skill => skill.Category == category.Value);
         }
 
+        // Short terms match inside many names, so the closest matches come first.
         var skills = await query
-            .OrderBy(skill => skill.NormalizedName)
+            .OrderBy(skill =>
+                skill.NormalizedName == searchTerm || skill.NormalizedNameTr == searchTerm
+                    ? 0
+                    : skill.NormalizedName.StartsWith(searchTerm) ||
+                        (skill.NormalizedNameTr != null &&
+                            skill.NormalizedNameTr.StartsWith(searchTerm))
+                        ? 1
+                        : 2)
+            .ThenBy(skill => skill.NormalizedName)
             .ThenBy(skill => skill.Category)
             .ThenBy(skill => skill.Id)
             .Skip(skip)

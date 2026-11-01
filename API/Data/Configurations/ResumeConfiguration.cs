@@ -49,6 +49,9 @@ public class ResumeConfiguration : IEntityTypeConfiguration<Resume>
             .IsRequired(false)
             .HasMaxLength(200);
 
+        builder.Property(resume => resume.UnlistedSkillsNote)
+            .HasMaxLength(500);
+
         builder.Property(resume => resume.Summary)
             .IsRequired(false)
             .HasMaxLength(3000);

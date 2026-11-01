@@ -17,6 +17,9 @@ public sealed class CreateResumeRequest
     [StringLength(3000)]
     public string? Summary { get; init; }
 
+    [StringLength(500)]
+    public string? UnlistedSkillsNote { get; init; }
+
     public bool IsMasterResume { get; init; }
 
     [NotEmptyGuid]

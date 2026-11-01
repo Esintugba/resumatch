@@ -194,22 +194,24 @@ public sealed class JobPostingSkillProvenanceMigrationTests : IntegrationTestBas
             Description = "C# required.",
             Status = JobPostingStatus.Draft
         };
-        var skill = new Skill
-        {
-            Name = "C#",
-            NormalizedName = "c#",
-            Category = SkillCategory.ProgrammingLanguage
-        };
+        // Raw SQL, because this schema predates later columns of the Skill entity.
+        var skillId = Guid.NewGuid();
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "Skills" ("Id", "Name", "NormalizedName", "Category", "CreatedAt")
+            VALUES ({skillId}, 'C#', 'c#', {(int)SkillCategory.ProgrammingLanguage}, now());
+            """,
+            cancellationToken);
         var requirement = new JobPostingSkill
         {
             JobPostingId = posting.Id,
-            SkillId = skill.Id,
+            SkillId = skillId,
             RequirementType = JobSkillRequirementType.Required,
             ImportanceScore = 90,
             IsAiDetected = false,
             ProvenanceStatus = JobPostingSkillProvenanceStatus.Manual
         };
-        context.AddRange(user, posting, skill, requirement);
+        context.AddRange(user, posting, requirement);
         await context.SaveChangesAsync(cancellationToken);
         return requirement.Id;
     }

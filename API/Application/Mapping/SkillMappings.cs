@@ -38,6 +38,7 @@ public static class SkillMappings
         {
             Id = skill.Id,
             Name = skill.Name,
+            NameTr = skill.NameTr,
             Category = skill.Category
         };
     }

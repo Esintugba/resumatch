@@ -7,6 +7,7 @@ public sealed class ResumeResponse
     public string Title { get; init; } = string.Empty;
     public string? ProfessionalTitle { get; init; }
     public string? Summary { get; init; }
+    public string? UnlistedSkillsNote { get; init; }
     public bool IsMasterResume { get; init; }
     public Guid? SourceResumeId { get; init; }
     public string? TemplateKey { get; init; }

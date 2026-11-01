@@ -23,6 +23,12 @@ public class SkillConfiguration : IEntityTypeConfiguration<Skill>
             .IsRequired()
             .HasMaxLength(150);
 
+        builder.Property(skill => skill.NameTr)
+            .HasMaxLength(150);
+
+        builder.Property(skill => skill.NormalizedNameTr)
+            .HasMaxLength(150);
+
         builder.Property(skill => skill.Category)
             .HasConversion<int>()
             .IsRequired();
