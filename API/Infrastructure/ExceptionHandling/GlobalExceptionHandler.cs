@@ -69,7 +69,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 .ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        if (problemDetails.Status >= StatusCodes.Status500InternalServerError)
+        if (problemDetails.Status >= StatusCodes.Status500InternalServerError &&
+            exception is not FeatureDisabledException)
         {
             _logger.LogError(
                 exception,
@@ -145,6 +146,14 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     Detail = tooManyRequestsException.Message,
                     Extensions = { ["code"] = tooManyRequestsException.Code }
                 },
+
+            FeatureDisabledException featureDisabledException => new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Service Unavailable",
+                Detail = featureDisabledException.Message,
+                Extensions = { ["code"] = ApiErrorCodes.FeatureDisabled }
+            },
 
             DbUpdateConcurrencyException => new ProblemDetails
             {

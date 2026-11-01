@@ -422,6 +422,7 @@ switch (extractionProvider)
         throw new InvalidOperationException(
             "The configured job description extraction provider is invalid.");
 }
+builder.Services.AddSingleton<IJobParsingAvailability, JobParsingAvailability>();
 builder.Services.AddSingleton<IJobDescriptionParser, JobDescriptionParserV1>();
 builder.Services.AddSingleton<IJobParserRegistry, JobParserRegistry>();
 builder.Services.AddScoped<

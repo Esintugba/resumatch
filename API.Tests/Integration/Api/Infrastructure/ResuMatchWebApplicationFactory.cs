@@ -142,11 +142,26 @@ public sealed class ResuMatchWebApplicationFactory
             });
         }
 
+        // Parse tests drive execution by hand with the worker off, so the feature
+        // stays on unless a test asks for the real configuration-based answer.
+        if (!_configurationOverrides.ContainsKey(UseConfiguredJobParsingAvailability))
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IJobParsingAvailability>();
+                services.AddSingleton<IJobParsingAvailability>(
+                    new EnabledJobParsingAvailability());
+            });
+        }
+
         if (_configureTestServices is not null)
         {
             builder.ConfigureTestServices(_configureTestServices);
         }
     }
+
+    public const string UseConfiguredJobParsingAvailability =
+        "Test:UseConfiguredJobParsingAvailability";
 
     public HttpClient CreateHttpsClient()
     {
@@ -192,5 +207,10 @@ public sealed class ResuMatchWebApplicationFactory
 
         _environmentRestored = true;
         EnvironmentLease.Release();
+    }
+
+    private sealed class EnabledJobParsingAvailability : IJobParsingAvailability
+    {
+        public bool IsEnabled => true;
     }
 }

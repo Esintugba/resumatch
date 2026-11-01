@@ -18,6 +18,7 @@ public static class ApiErrorCodes
     public const string UnsupportedMediaType = "unsupported_media_type";
     public const string RateLimited = "rate_limited";
     public const string InternalError = "internal_error";
+    public const string FeatureDisabled = "feature_disabled";
 
     public const string RegistrationRejected = "registration_rejected";
     public const string SectionLimitReached = "section_limit_reached";

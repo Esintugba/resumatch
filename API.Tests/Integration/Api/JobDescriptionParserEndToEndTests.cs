@@ -698,6 +698,189 @@ public sealed class JobDescriptionParserEndToEndTests : IntegrationTestBase
             .ToListAsync(cancellation.Token));
     }
 
+    [Fact]
+    public async Task ParseRequest_WithTheDefaultConfiguration_Returns503WithoutSideEffects()
+    {
+        using var cancellation = CreateCancellation();
+        var seeded = await SeedScenarioAsync(cancellation.Token);
+        using var application = new ResuMatchWebApplicationFactory(
+            Fixture,
+            new Dictionary<string, string?>
+            {
+                [ResuMatchWebApplicationFactory.UseConfiguredJobParsingAvailability] = "true"
+            });
+        using var client = new AuthenticatedHttpClientFactory(application)
+            .CreateForExistingUser(seeded.User);
+
+        using var response = await SendParseAsync(
+            client,
+            seeded.Posting.Id,
+            seeded.Posting.Version,
+            cancellation.Token);
+
+        await AssertFeatureDisabledAsync(response, cancellation.Token);
+    }
+
+    [Fact]
+    public async Task ParseRequest_WithAProviderButNoWorker_Returns503WithoutSideEffects()
+    {
+        using var cancellation = CreateCancellation();
+        var handler = new ControlledOpenAiHttpMessageHandler();
+        var seeded = await SeedScenarioAsync(cancellation.Token);
+        using var application = CreateApplication(handler, new Dictionary<string, string?>
+        {
+            [ResuMatchWebApplicationFactory.UseConfiguredJobParsingAvailability] = "true"
+        });
+        using var client = new AuthenticatedHttpClientFactory(application)
+            .CreateForExistingUser(seeded.User);
+
+        using var response = await SendParseAsync(
+            client,
+            seeded.Posting.Id,
+            seeded.Posting.Version,
+            cancellation.Token);
+
+        await AssertFeatureDisabledAsync(response, cancellation.Token);
+        Assert.Equal(0, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ParseRequest_WhenFeatureIsOff_DoesNotRevealPostingOrRequireIfMatch()
+    {
+        using var cancellation = CreateCancellation();
+        var seeded = await SeedScenarioAsync(cancellation.Token);
+        using var application = new ResuMatchWebApplicationFactory(
+            Fixture,
+            new Dictionary<string, string?>
+            {
+                [ResuMatchWebApplicationFactory.UseConfiguredJobParsingAvailability] = "true"
+            });
+        using var client = new AuthenticatedHttpClientFactory(application)
+            .CreateForExistingUser(seeded.User);
+
+        using var unknown = await SendParseAsync(client, Guid.NewGuid(), 1, cancellation.Token);
+        using var missingHeader = await client.PostAsync(
+            $"/api/job-postings/{seeded.Posting.Id:D}/parse",
+            content: null,
+            cancellation.Token);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, unknown.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, missingHeader.StatusCode);
+    }
+
+    [Fact]
+    public async Task ParseRequest_WhenFeatureIsOn_CompletesThroughTheWorker()
+    {
+        using var cancellation = CreateCancellation();
+        var handler = new ControlledOpenAiHttpMessageHandler();
+        handler.EnqueueJson(HttpStatusCode.OK, SuccessEnvelope(
+            Candidate("C#", "required", "C#")));
+        var seeded = await SeedScenarioAsync(cancellation.Token);
+        using var application = CreateApplication(handler, new Dictionary<string, string?>
+        {
+            [ResuMatchWebApplicationFactory.UseConfiguredJobParsingAvailability] = "true",
+            ["JobPostingParseDrafts:WorkerEnabled"] = "true",
+            ["JobPostingParseDrafts:PollInterval"] = "00:00:00.100"
+        });
+        using var client = new AuthenticatedHttpClientFactory(application)
+            .CreateForExistingUser(seeded.User);
+
+        var requested = await RequestParseAsync(client, seeded.Posting, cancellation.Token);
+
+        Assert.Equal(HttpStatusCode.Accepted, requested.Response.StatusCode);
+        var status = JobPostingParseDraftStatus.Pending;
+        while (status != JobPostingParseDraftStatus.Ready)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellation.Token);
+            await using var context = Fixture.DbContextFactory.CreateDbContext();
+            status = await context.JobPostingParseDrafts.AsNoTracking()
+                .Where(item => item.Id == requested.Body.DraftId)
+                .Select(item => item.Status)
+                .SingleAsync(cancellation.Token);
+        }
+
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ParseRequest_WhilePaused_StillQueuesTheDraft()
+    {
+        using var cancellation = CreateCancellation();
+        var handler = new ControlledOpenAiHttpMessageHandler();
+        var seeded = await SeedScenarioAsync(cancellation.Token);
+        using var application = CreateApplication(handler, new Dictionary<string, string?>
+        {
+            [ResuMatchWebApplicationFactory.UseConfiguredJobParsingAvailability] = "true",
+            ["JobPostingParseDrafts:WorkerEnabled"] = "true",
+            ["JobPostingParseDrafts:ProviderExecutionEnabled"] = "false",
+            ["JobPostingParseDrafts:PollInterval"] = "00:00:00.100"
+        });
+        using var client = new AuthenticatedHttpClientFactory(application)
+            .CreateForExistingUser(seeded.User);
+
+        var requested = await RequestParseAsync(client, seeded.Posting, cancellation.Token);
+
+        Assert.Equal(HttpStatusCode.Accepted, requested.Response.StatusCode);
+        Assert.Equal(JobPostingParseDraftStatus.Pending, requested.Body.Status);
+        Assert.Equal(0, handler.CallCount);
+    }
+
+    [Theory]
+    [InlineData("OpenAI", "true", true)]
+    [InlineData("Unavailable", "false", false)]
+    public async Task Capabilities_ReportJobParsingAnonymously(
+        string provider,
+        string workerEnabled,
+        bool expected)
+    {
+        using var cancellation = CreateCancellation();
+        using var application = CreateApplication(
+            new ControlledOpenAiHttpMessageHandler(),
+            new Dictionary<string, string?>
+            {
+                [ResuMatchWebApplicationFactory.UseConfiguredJobParsingAvailability] = "true",
+                ["JobDescriptionExtraction:Provider"] = provider,
+                ["JobPostingParseDrafts:WorkerEnabled"] = workerEnabled,
+                ["JobPostingParseDrafts:PollInterval"] = "00:00:00.100"
+            });
+        using var client = application.CreateHttpsClient();
+
+        using var response = await client.GetAsync("/api/capabilities", cancellation.Token);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync(cancellation.Token));
+        Assert.Equal(expected, body.RootElement.GetProperty("jobParsing").GetBoolean());
+    }
+
+    private async Task AssertFeatureDisabledAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var body = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("feature_disabled", body.RootElement.GetProperty("code").GetString());
+        Assert.Equal(503, body.RootElement.GetProperty("status").GetInt32());
+        await using var verification = Fixture.DbContextFactory.CreateDbContext();
+        Assert.False(await verification.JobPostingParseDrafts.AnyAsync(cancellationToken));
+        Assert.False(await verification.AiUsageReservations.AnyAsync(cancellationToken));
+    }
+
+    private static async Task<HttpResponseMessage> SendParseAsync(
+        HttpClient client,
+        Guid postingId,
+        uint version,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/job-postings/{postingId:D}/parse");
+        request.Headers.TryAddWithoutValidation("If-Match", EntityTagCodec.Format(version));
+        return await client.SendAsync(request, cancellationToken);
+    }
+
     private ResuMatchWebApplicationFactory CreateApplication(
         ControlledOpenAiHttpMessageHandler handler,
         IReadOnlyDictionary<string, string?>? overrides = null,

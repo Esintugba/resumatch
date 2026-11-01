@@ -65,6 +65,8 @@ Trust only private and loopback peers (`TrustedNetworks` `10.0.0.0/8`, `TrustedP
 | `AiUsageBudget__System__DailyRequestLimit` / `__DailyTokenLimit` | `20` / `400000` | With provider execution | No |
 | `AiUsageBudget__System__MonthlyRequestLimit` / `__MonthlyTokenLimit` | `200` / `4000000` | With provider execution | No |
 
+Parsing is offered only when a provider is configured and `JobPostingParseDrafts__WorkerEnabled` is `true`. Otherwise parse requests return 503 `feature_disabled`, create no draft and call no provider. `ProviderExecutionEnabled=false` is a pause, not this state: requests still queue and run when execution resumes.
+
 Each parse reserves about 16,096 tokens (`EstimatedInputTokens` 12,000 + `MaximumOutputTokens` 4,096), so these limits allow about 6 parses per user per day. Budget tokens are only a safety net; also set a hard spending limit in the OpenAI account.
 
 ### Connection strings

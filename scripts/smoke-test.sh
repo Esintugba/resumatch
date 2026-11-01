@@ -53,6 +53,7 @@ for check in database schema configuration job-parser; do
   fi
 done
 
+expect_status "capabilities are available" 200 /api/capabilities
 expect_status "missing token is rejected" 401 /api/resumes
 expect_status "invalid token is rejected" 401 /api/resumes \
   --header "Authorization: Bearer not-a-valid-token"

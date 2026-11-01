@@ -348,7 +348,7 @@ Her satır tek PR'dır. Kapalı beta için 21 PR vardır. **Migration içeren he
 | # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
 |---|---|---|---|---|---|
 | 1 | API sözleşmesi | Hayır | Evet | Sonraki her PR buna dayanır, davranış değil biçim değiştirir | String enum, hata `code`, `ProblemDetails` tipleri, `Retry-After` ve `ETag` için CORS |
-| 2 | Kapalı özellik yanıtı | Hayır | Evet | Parse davranışını değiştirir, kendi testleri olur | `GET /capabilities`, OpenAI kapalıyken `POST .../parse` 503 ve `feature_disabled` kodu, draft oluşturmaz |
+| 2 | Kapalı özellik yanıtı | Hayır | Evet | Parse davranışını değiştirir, kendi testleri olur | `GET /api/capabilities`, sağlayıcı veya worker yokken `POST .../parse` 503 ve `feature_disabled` kodu, draft oluşturmaz |
 | 3 | Beceri kataloğu | **Evet** | Evet | Veri ve şema değişikliği, ayrı onay ister | Küratörlü liste, "katalogda yok" notu |
 | 4 | Oturum temeli | **Evet** | Evet | Tablo ve token kuralları, cookie'den bağımsız test edilir | Refresh oturumları, rotasyon, tekrar kullanım, `SecurityStamp`, logout, oturum listesi, 15 dk access |
 | 5 | Cookie ve CSRF | Hayır | Evet | Tarayıcı güvenlik yüzeyi, ayrı inceleme gerekir | HttpOnly cookie, `Origin` ve başlık kontrolü, CORS kimlik bilgisi |
