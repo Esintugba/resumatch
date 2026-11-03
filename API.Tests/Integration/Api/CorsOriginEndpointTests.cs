@@ -53,6 +53,34 @@ public sealed class CorsOriginEndpointTests(PostgreSqlFixture fixture)
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Credentials_WithoutAnExplicitOrigin_FailAtStartup()
+    {
+        using var application = new ResuMatchWebApplicationFactory(
+            Fixture,
+            new Dictionary<string, string?> { ["HttpSecurity:AllowCredentials"] = "true" });
+
+        var exception = Assert.Throws<InvalidOperationException>(() => _ = application.Services);
+        Assert.Contains(
+            "CORS credentials require at least one explicitly allowed origin.",
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WildcardOrigin_FailsAtStartup()
+    {
+        using var application = new ResuMatchWebApplicationFactory(
+            Fixture,
+            new Dictionary<string, string?>
+            {
+                ["HttpSecurity:AllowedOrigins:0"] = "*",
+                ["HttpSecurity:AllowCredentials"] = "true"
+            });
+
+        Assert.Throws<InvalidOperationException>(() => _ = application.Services);
+    }
+
     private async Task<HttpResponseMessage> SendPreflightAsync(
         string configuredOrigin,
         string requestOrigin)

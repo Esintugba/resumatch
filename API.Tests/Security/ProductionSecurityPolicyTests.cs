@@ -132,4 +132,25 @@ public sealed class ProductionSecurityPolicyTests
         Assert.Throws<ArgumentNullException>(() =>
             ProductionSecurityPolicy.Validate(true, "api.example.com", null!));
     }
+
+    [Theory]
+    [InlineData("http://app.example.com", true, 1)]
+    [InlineData("https://app.example.com", true, 0)]
+    [InlineData("http://app.example.com", false, 0)]
+    public void Production_CredentialedOrigins_MustUseHttps(
+        string origin,
+        bool allowCredentials,
+        int expectedFailures)
+    {
+        var failures = ProductionSecurityPolicy.Validate(
+            isProduction: true,
+            "api.example.com",
+            new HttpSecurityOptions
+            {
+                AllowedOrigins = ["https://other.example.com", origin],
+                AllowCredentials = allowCredentials
+            });
+
+        Assert.Equal(expectedFailures, failures.Count);
+    }
 }

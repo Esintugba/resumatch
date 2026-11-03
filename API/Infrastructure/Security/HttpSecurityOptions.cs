@@ -303,6 +303,16 @@ public static class ProductionSecurityPolicy
             failures.Add("HSTS must be enabled in production.");
         }
 
+        // A credentialed origin over plain HTTP could be read or rewritten on
+        // the network, and the refresh token cookie is Secure anyway.
+        if (options.AllowCredentials &&
+            options.AllowedOrigins.Any(origin =>
+                !origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+        {
+            failures.Add(
+                "Production CORS credentials require every allowed origin to use HTTPS.");
+        }
+
         if (options.ExposeOpenApi)
         {
             failures.Add(

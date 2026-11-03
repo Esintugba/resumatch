@@ -192,9 +192,37 @@ public sealed class AuthSessionService : IAuthSessionService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> RevokeAsync(
+    public Task<bool> RevokeAsync(
         Guid userId,
         Guid sessionId,
+        AuthSessionRevocationReason reason,
+        CancellationToken cancellationToken) =>
+        RevokeSessionAsync(sessionId, userId, reason, cancellationToken);
+
+    public async Task<bool> RevokeByRefreshTokenAsync(
+        string? refreshToken,
+        AuthSessionRevocationReason reason,
+        CancellationToken cancellationToken)
+    {
+        if (!RefreshTokenCodec.TryHash(refreshToken, out var hash))
+        {
+            return false;
+        }
+
+        // Any token of the session, even an already rotated one, signs it out:
+        // whoever holds it held the session, and reuse would revoke it anyway.
+        var sessionId = await _dbContext.RefreshTokens
+            .AsNoTracking()
+            .Where(token => token.TokenHash == hash)
+            .Select(token => (Guid?)token.SessionId)
+            .SingleOrDefaultAsync(cancellationToken);
+        return sessionId is not null &&
+            await RevokeSessionAsync(sessionId.Value, userId: null, reason, cancellationToken);
+    }
+
+    private async Task<bool> RevokeSessionAsync(
+        Guid sessionId,
+        Guid? userId,
         AuthSessionRevocationReason reason,
         CancellationToken cancellationToken)
     {
@@ -208,7 +236,7 @@ public sealed class AuthSessionService : IAuthSessionService
 
         var session = await _dbContext.AuthSessions
             .SingleOrDefaultAsync(
-                item => item.Id == sessionId && item.UserId == userId,
+                item => item.Id == sessionId && (userId == null || item.UserId == userId),
                 cancellationToken);
         if (session is null || session.RevokedAt is not null)
         {

@@ -130,9 +130,9 @@ Bu adımlar betada uygulanmaz, OpenAI betada kapalıdır.
 
 ### Mevcut durum
 
-- HS256 erişim token'ı, 60 dakika, [appsettings.json:12](../../API/appsettings.json#L12) (üst sınır 24 saat).
-- Refresh token ve çıkış ucu yok.
-- `AllowCredentials` ayarı var, cookie okuma kodu yok.
+- HS256 erişim token'ı, 15 dakika (PR 5), [appsettings.json:12](../../API/appsettings.json#L12) (üst sınır 24 saat).
+- Oturumlar ve refresh rotasyonu PR 4'te, cookie, `/auth/refresh`, `/auth/logout` ve CSRF kontrolü PR 5'te eklendi. Ayrıntı: [authentication.md](../api/authentication.md).
+- Canlıda `AllowCredentials` alan adı gelene kadar kapalı, cookie akışı tarayıcıdan kullanılmıyor.
 
 ### Neden özel alan adı gerekli
 

@@ -10,6 +10,13 @@ public sealed class AuthenticationRateLimitOptions
     public TimeSpan LoginWindow { get; init; } = TimeSpan.FromMinutes(1);
     public int RegisterPermitLimit { get; init; } = 3;
     public TimeSpan RegisterWindow { get; init; } = TimeSpan.FromMinutes(10);
+
+    // Every open tab refreshes about every 15 minutes, and users behind one
+    // NAT share the address, so this is far looser than the login limit.
+    public int RefreshPermitLimit { get; init; } = 30;
+    public TimeSpan RefreshWindow { get; init; } = TimeSpan.FromMinutes(1);
+    public int LogoutPermitLimit { get; init; } = 10;
+    public TimeSpan LogoutWindow { get; init; } = TimeSpan.FromMinutes(1);
     public int QueueLimit { get; init; }
 }
 
@@ -32,6 +39,16 @@ public sealed class AuthenticationRateLimitOptionsValidator :
             "Register",
             options.RegisterPermitLimit,
             options.RegisterWindow,
+            failures);
+        ValidatePolicy(
+            "Refresh",
+            options.RefreshPermitLimit,
+            options.RefreshWindow,
+            failures);
+        ValidatePolicy(
+            "Logout",
+            options.LogoutPermitLimit,
+            options.LogoutWindow,
             failures);
 
         if (options.QueueLimit != 0)

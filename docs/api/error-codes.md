@@ -28,6 +28,7 @@ Rules for changing this list:
 | `validation_failed` | 400 | The request failed validation. Field messages are in `errors` when available. |
 | `malformed_request` | 400 and other 4xx | The server could not read the request, for example bad framing. |
 | `unauthorized` | 401 | The token is missing, invalid or expired, or the credentials are wrong. |
+| `csrf_rejected` | 403 | A refresh or logout request lacked the `X-ResuMatch-CSRF: 1` header or did not come from an allowed origin. Do not retry. |
 | `not_found` | 404 | The resource does not exist or belongs to another user. |
 | `conflict` | 409 | The request conflicts with the current state and no specific code applies. |
 | `precondition_failed` | 412 | `If-Match` is stale. Reload the resource and retry with the new ETag. |
@@ -57,6 +58,7 @@ All have status 409 unless noted.
 | `skill_provenance_locked` | The source of this job posting skill does not allow the operation. It cannot be adopted, or it came from AI parsing and cannot be removed by hand. |
 | `job_posting_skill_limit_reached` | The job posting has the maximum of 50 skills. |
 | `parse_cooldown` | Status 429. The same content was parsed recently. See `Retry-After`. |
+| `refresh_token_superseded` | Another tab refreshed with the same cookie a moment ago. The browser already holds the new cookie: retry the refresh once. |
 
 ## Validation errors
 

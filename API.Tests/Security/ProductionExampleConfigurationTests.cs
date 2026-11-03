@@ -71,6 +71,21 @@ public sealed class ProductionExampleConfigurationTests
             Bind<AiUsageBudgetOptions>(AiUsageBudgetOptions.SectionName)));
     }
 
+    [Theory]
+    [InlineData("appsettings.json")]
+    [InlineData("appsettings.Production.example.json")]
+    public void AccessTokens_LastFifteenMinutes(string fileName)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(
+                Path.Combine(FindRepositoryRoot(), "API", fileName),
+                optional: false,
+                reloadOnChange: false)
+            .Build();
+
+        Assert.Equal("15", configuration["Jwt:AccessTokenExpirationMinutes"]);
+    }
+
     private static T Bind<T>(string sectionName)
         where T : new() =>
         Configuration.GetSection(sectionName).Get<T>() ?? new T();

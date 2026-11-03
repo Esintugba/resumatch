@@ -6,6 +6,7 @@ Run after schema migration and before production expansion. Record outcomes with
 - [ ] `/health/ready` returns 200 and lists healthy `database`, `schema`, `configuration`, and `job-parser` checks.
 - [ ] `/health/version` reports the deployed commit, not `unknown`.
 - [ ] JWT authentication accepts a valid token and rejects missing/invalid tokens.
+- [ ] `POST /api/auth/refresh` without `X-ResuMatch-CSRF: 1`, or from an origin that is not allowed, returns 403 `csrf_rejected`.
 - [ ] Parse request creates a draft and respects ownership, ETag, cooldown, and rate limiting.
 - [ ] Worker claims with lease fencing and transitions through provider execution to Ready.
 - [ ] Confirmation persists only reviewed skills and correct provenance.

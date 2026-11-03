@@ -22,6 +22,20 @@ internal static class RateLimitPolicyResolver
         }
 
         if (path.StartsWithSegments(
+                "/api/auth/refresh",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthenticationRateLimitPolicyNames.Refresh;
+        }
+
+        if (path.StartsWithSegments(
+                "/api/auth/logout",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthenticationRateLimitPolicyNames.Logout;
+        }
+
+        if (path.StartsWithSegments(
                 "/api/job-postings",
                 StringComparison.OrdinalIgnoreCase,
                 out var remaining) &&

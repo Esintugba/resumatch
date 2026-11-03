@@ -132,7 +132,7 @@ jobs:
       # Design-time host settings only; never used to reach a real service.
       Jwt__Issuer: design-time
       Jwt__Audience: design-time
-      Jwt__AccessTokenExpirationMinutes: 60
+      Jwt__AccessTokenExpirationMinutes: 15
       ConnectionStrings__DefaultConnection: Host=localhost;Database=design_time;Username=none;Password=none
     steps:
       - name: Require deployment settings

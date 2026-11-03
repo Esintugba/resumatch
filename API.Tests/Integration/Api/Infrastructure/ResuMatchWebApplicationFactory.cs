@@ -163,12 +163,13 @@ public sealed class ResuMatchWebApplicationFactory
     public const string UseConfiguredJobParsingAvailability =
         "Test:UseConfiguredJobParsingAvailability";
 
-    public HttpClient CreateHttpsClient()
+    public HttpClient CreateHttpsClient(bool handleCookies = true)
     {
         return CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
-            BaseAddress = new Uri("https://localhost")
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = handleCookies
         });
     }
 
