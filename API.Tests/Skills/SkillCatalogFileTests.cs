@@ -14,7 +14,8 @@ public sealed class SkillCatalogFileTests
     [Fact]
     public void Catalog_HasThePlannedSizeAndDistribution()
     {
-        Assert.Equal(399, Rows.Count);
+        Assert.Equal(400, Rows.Count);
+        Assert.Equal(399, SkillCatalogFile.Read(version: 1).Count);
         var expected = new Dictionary<SkillCategory, int>
         {
             [SkillCategory.ProgrammingLanguage] = 29,
@@ -27,7 +28,7 @@ public sealed class SkillCatalogFileTests
             [SkillCategory.Architecture] = 25,
             [SkillCategory.Tool] = 50,
             [SkillCategory.SoftSkill] = 40,
-            [SkillCategory.Other] = 30
+            [SkillCategory.Other] = 31
         };
 
         Assert.Equal(
@@ -92,6 +93,68 @@ public sealed class SkillCatalogFileTests
     public void CommonVariants_AreNotSeparateRecords(string variant)
     {
         Assert.DoesNotContain(Rows, row => row.NormalizedName == variant);
+    }
+
+    [Fact]
+    public void SearchAliases_AreUniqueFoldedAndNeverAName()
+    {
+        var aliases = Rows.SelectMany(row => row.SearchAliases).ToArray();
+        var names = Rows.Select(row => row.NormalizedName)
+            .Concat(Rows.Where(row => row.NormalizedNameTr is not null)
+                .Select(row => row.NormalizedNameTr!))
+            .ToHashSet();
+
+        Assert.Equal(79, aliases.Length);
+        Assert.Equal(55, Rows.Count(row => row.SearchAliases.Count > 0));
+        Assert.Equal(aliases.Length, aliases.Distinct().Count());
+        Assert.All(aliases, alias =>
+        {
+            Assert.Equal(SkillSearchText.Normalize(alias), alias);
+            Assert.DoesNotContain(alias, names);
+        });
+    }
+
+    [Theory]
+    [InlineData("Artificial Intelligence", "ai")]
+    [InlineData("Machine Learning", "ml")]
+    [InlineData("Bash", "shell scripting")]
+    [InlineData("JavaScript", "js")]
+    [InlineData("TypeScript", "ts")]
+    [InlineData("Kubernetes", "k8s")]
+    [InlineData("Go", "golang")]
+    [InlineData("PostgreSQL", "postgres")]
+    [InlineData("C", "c dili")]
+    [InlineData("R", "r dili")]
+    public void SearchAliases_PointToTheExpectedSkill(string name, string alias)
+    {
+        Assert.Contains(alias, Assert.Single(Rows, row => row.Name == name).SearchAliases);
+    }
+
+    [Fact]
+    public void ArtificialIntelligence_UsesItsTurkishNameAndNotAnAlias()
+    {
+        var row = Assert.Single(Rows, item => item.Name == "Artificial Intelligence");
+
+        Assert.Equal(SkillCategory.Other, row.Category);
+        Assert.Equal("Yapay zeka", row.NameTr);
+        Assert.Equal(["ai"], row.SearchAliases);
+        Assert.Equal(["ml"], Assert.Single(Rows, item => item.Name == "Machine Learning").SearchAliases);
+    }
+
+    [Fact]
+    public void NewVersion_OnlyAddsArtificialIntelligenceAndAliases()
+    {
+        var previous = SkillCatalogFile.Read(version: 1);
+
+        Assert.Equal(
+            ["Artificial Intelligence"],
+            Rows.Select(row => row.Name).Except(previous.Select(row => row.Name)));
+        Assert.All(previous, row =>
+        {
+            var current = Assert.Single(Rows, item => item.Name == row.Name);
+            Assert.Equal(row.Category, current.Category);
+            Assert.Equal(row.NameTr, current.NameTr);
+        });
     }
 
     [Fact]

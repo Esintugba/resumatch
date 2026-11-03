@@ -2,22 +2,30 @@
 
 Users pick skills from a curated catalog. User input never enters it.
 
-- **Source:** [`API/Data/SkillCatalog/skill-catalog-v1.csv`](../../API/Data/SkillCatalog/skill-catalog-v1.csv), 399 skills written for this project. No row is copied from an external data set.
+- **Source:** [`API/Data/SkillCatalog/skill-catalog-v2.csv`](../../API/Data/SkillCatalog/skill-catalog-v2.csv), 400 skills written for this project, with search aliases in the last column. No row is copied from an external data set. Each version matches one migration; `v1` is kept as the record of the first one.
 - **One name per technology:** variants such as `React.js`, `nodejs` or `postgres` are not separate rows. A test keeps normalized names unique across categories.
 - **Names:** `Name` is the canonical name and is the only name used for matching. `NameTr` is a display name for general concepts, and stays empty for product names.
-- **Changes:** edit the catalog with a new migration. Do not edit a migration that has already been applied.
+- **Changes:** add a new catalog version and a new migration. Do not edit a version or a migration that has already been applied.
 
 ## Search
 
-`GET /api/skills?search=` matches any part of `Name` or `NameTr`. Exact matches come first, then names that start with the term, then the rest.
+`GET /api/skills?search=` searches `Name`, `NameTr` and the search aliases. The rules widen with the length of the term:
+
+| Length | Matches | Order |
+|---|---|---|
+| 1 character | Exact name, Turkish name or alias | Exact |
+| 2 characters | Exact, then names that start with the term, then words that start with it | Exact, prefix, word start |
+| 3 or more | Exact, then names that start with the term, then names that contain it | Exact, prefix, contains |
+
+Words are separated by any character that is not a letter or digit, so `js` finds `Next.js` but not `NestJS`. Aliases match only exactly: `k8s` finds Kubernetes, `k8` finds nothing. Clients need no minimum length; `c` and `r` find C and R.
 
 Search ignores case and Turkish letters: `İLETİŞİM`, `iletişim` and `iletisim` find the same skill. This applies to search only, not to matching.
 
-Abbreviations are not resolved yet. `js`, `ts`, `k8s` and `golang` do not find JavaScript, TypeScript, Kubernetes or Go. A search for `postgres` works only because it is part of `PostgreSQL`.
+Aliases, such as `js`, `k8s`, `golang` or `shell scripting`, live in `Skills.SearchAliases`. They are never returned by the API and never used by analysis, matching or the catalog hash.
 
 ## Catalog changes and the catalog hash
 
-A ready parse draft stores a hash of the whole catalog. Adding, renaming or recategorizing a skill changes that hash, so such a draft can no longer be confirmed and returns `parse_draft_outdated`. The user requests a new parse. `NameTr` is not part of the hash.
+A ready parse draft stores a hash of the whole catalog. Adding, renaming or recategorizing a skill changes that hash, so such a draft can no longer be confirmed and returns `parse_draft_outdated`. The user requests a new parse. `NameTr` and the search aliases are not part of the hash.
 
 Stored analyses are not affected. Their hash covers only the skills of the job posting they used.
 

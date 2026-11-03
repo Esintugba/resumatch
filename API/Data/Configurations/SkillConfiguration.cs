@@ -29,6 +29,11 @@ public class SkillConfiguration : IEntityTypeConfiguration<Skill>
         builder.Property(skill => skill.NormalizedNameTr)
             .HasMaxLength(150);
 
+        builder.Property(skill => skill.SearchAliases)
+            .HasColumnType("text[]")
+            .HasDefaultValueSql("'{}'")
+            .IsRequired();
+
         builder.Property(skill => skill.Category)
             .HasConversion<int>()
             .IsRequired();
