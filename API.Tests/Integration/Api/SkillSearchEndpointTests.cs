@@ -46,8 +46,6 @@ public sealed class SkillSearchEndpointTests : AnalysisApiTestBase
     [InlineData("f#", "F#")]
     [InlineData("ci/cd", "CI/CD")]
     [InlineData("go", "Go")]
-    [InlineData("r", "R")]
-    [InlineData("c", "C")]
     [InlineData("java", "Java")]
     [InlineData("react", "React")]
     public async Task ExactMatch_ComesFirst(string search, string expected)
@@ -85,13 +83,48 @@ public sealed class SkillSearchEndpointTests : AnalysisApiTestBase
     }
 
     [Theory]
-    [InlineData("js", "JavaScript")]
-    [InlineData("ts", "TypeScript")]
-    [InlineData("k8s", "Kubernetes")]
-    [InlineData("golang", "Go")]
-    public async Task Abbreviations_AreNotResolvedYet(string search, string canonicalName)
+    [InlineData("js", new[] { "JavaScript", "Ember.js", "Next.js", "Node.js", "Vue.js" })]
+    [InlineData("ts", new[] { "TypeScript" })]
+    [InlineData("ai", new[] { "Artificial Intelligence", "Apache Airflow" })]
+    [InlineData("ml", new[] { "Machine Learning" })]
+    [InlineData("k8s", new[] { "Kubernetes" })]
+    [InlineData("golang", new[] { "Go" })]
+    [InlineData("shell scripting", new[] { "Bash" })]
+    [InlineData("SHELL SCRIPTING", new[] { "Bash" })]
+    [InlineData("c", new[] { "C" })]
+    [InlineData("r", new[] { "R" })]
+    [InlineData("yapay zeka", new[] { "Artificial Intelligence" })]
+    [InlineData("ui", new[] { "UI Design", "UIKit", "Chakra UI", "Material UI", "shadcn/ui" })]
+    public async Task Search_ReturnsTheExpectedSkillsInOrder(string search, string[] expected)
     {
-        Assert.DoesNotContain(canonicalName, await SearchAsync(search));
+        Assert.Equal(expected, await SearchAsync(search));
+    }
+
+    [Theory]
+    [InlineData("k8")]
+    [InlineData("gola")]
+    [InlineData("shell scrip")]
+    [InlineData("j")]
+    public async Task Aliases_MatchOnlyExactly(string search)
+    {
+        Assert.Empty(await SearchAsync(search));
+    }
+
+    [Fact]
+    public async Task TwoCharacters_MatchAtWordStartsButNotInside()
+    {
+        var names = await SearchAsync("js");
+
+        Assert.Contains("Next.js", names);
+        Assert.DoesNotContain("NestJS", names);
+        Assert.DoesNotContain("RxJS", names);
+    }
+
+    [Fact]
+    public async Task OneCharacter_MatchesExactlyEvenForLetters()
+    {
+        Assert.Equal(["C"], await SearchAsync("C"));
+        Assert.Empty(await SearchAsync("q"));
     }
 
     private async Task<string[]> SearchAsync(string search)

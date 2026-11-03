@@ -4,7 +4,11 @@ using Api.Entities.Enums;
 
 namespace API.Tests.Skills;
 
-public sealed record SkillCatalogRow(string Name, SkillCategory Category, string? NameTr)
+public sealed record SkillCatalogRow(
+    string Name,
+    SkillCategory Category,
+    string? NameTr,
+    IReadOnlyList<string> SearchAliases)
 {
     public string NormalizedName => Name.ToLowerInvariant();
 
@@ -18,13 +22,16 @@ public sealed record SkillCatalogRow(string Name, SkillCategory Category, string
         NormalizedName = NormalizedName,
         Category = Category,
         NameTr = NameTr,
-        NormalizedNameTr = NormalizedNameTr
+        NormalizedNameTr = NormalizedNameTr,
+        SearchAliases = [.. SearchAliases]
     };
 }
 
 public static class SkillCatalogFile
 {
-    public static IReadOnlyList<SkillCatalogRow> Read()
+    public const int CurrentVersion = 2;
+
+    public static IReadOnlyList<SkillCatalogRow> Read(int version = CurrentVersion)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (!File.Exists(Path.Combine(directory!.FullName, "ResuMatch.slnx")))
@@ -38,13 +45,14 @@ public static class SkillCatalogFile
                 "API",
                 "Data",
                 "SkillCatalog",
-                "skill-catalog-v1.csv"))
+                $"skill-catalog-v{version}.csv"))
             .Skip(1)
             .Select(line => line.Split(','))
             .Select(fields => new SkillCatalogRow(
                 fields[0],
                 Enum.Parse<SkillCategory>(fields[1]),
-                fields[2].Length == 0 ? null : fields[2]))
+                fields[2].Length == 0 ? null : fields[2],
+                fields.Length > 3 && fields[3].Length > 0 ? fields[3].Split('|') : []))
             .ToArray();
     }
 }
