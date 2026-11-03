@@ -53,9 +53,10 @@ public sealed class SkillAliasIsolationTests : AnalysisApiTestBase
         Assert.Equal(before.AtsScore, after.AtsScore);
         Assert.Equal(before.JobMatchScore, after.JobMatchScore);
         Assert.Equal(before.KeywordScore, after.KeywordScore);
+        // The API does not promise an order for keyword matches, so compare them as sets.
         Assert.Equal(
-            before.KeywordMatches.Select(item => (item.SkillId, item.Status)),
-            after.KeywordMatches.Select(item => (item.SkillId, item.Status)));
+            before.KeywordMatches.Select(item => (item.SkillId, item.Status)).OrderBy(item => item.SkillId),
+            after.KeywordMatches.Select(item => (item.SkillId, item.Status)).OrderBy(item => item.SkillId));
         Assert.Contains(after.KeywordMatches, item =>
             item.SkillId == docker.Id && item.Status == KeywordMatchStatus.Missing);
     }
