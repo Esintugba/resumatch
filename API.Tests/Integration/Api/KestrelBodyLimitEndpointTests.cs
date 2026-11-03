@@ -242,10 +242,9 @@ public sealed class KestrelBodyLimitEndpointTests(PostgreSqlFixture fixture)
                     await context.SaveChangesAsync(cancellationToken);
                 }
 
-                var token = application.Services
-                    .GetRequiredService<IJwtTokenService>()
-                    .GenerateAccessToken(user)
-                    .Token;
+                // A valid token needs a live session.
+
+                var token = new AuthenticatedHttpClientFactory(application).CreateAccessToken(user);
                 var anonymous = CreateClient(address);
                 var authenticated = CreateClient(address);
                 authenticated.DefaultRequestHeaders.Authorization =

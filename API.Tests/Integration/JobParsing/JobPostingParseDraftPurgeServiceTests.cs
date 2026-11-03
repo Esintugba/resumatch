@@ -698,6 +698,8 @@ public sealed class JobPostingParseDraftPurgeServiceTests(PostgreSqlFixture fixt
 
     private sealed class TestCurrentUserService(Guid userId) : ICurrentUserService
     {
+        public Guid? SessionId => null;
+
         public Guid? UserId => userId;
         public string? Email => null;
         public bool IsAuthenticated => true;

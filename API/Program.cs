@@ -321,6 +321,11 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddOptions<AuthSessionOptions>()
+    .Bind(builder.Configuration.GetSection(AuthSessionOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<AuthSessionOptions>, AuthSessionOptionsValidator>();
+builder.Services.AddScoped<IAuthSessionService, AuthSessionService>();
 builder.Services.AddSingleton<IAnalysisEngine, AnalysisEngineV1>();
 builder.Services.AddSingleton<IAnalyzerRegistry, AnalyzerRegistry>();
 builder.Services.AddScoped<AnalysisInputLoader>();
@@ -473,6 +478,7 @@ builder.Services.AddHostedService<JobPostingParseDraftPurgeBackgroundService>();
 builder.Services.AddHostedService<AiUsageReservationReconciliationBackgroundService>();
 builder.Services.AddHostedService<AiUsageLedgerPurgeBackgroundService>();
 builder.Services.AddHostedService<JobParsingOperationalSampler>();
+builder.Services.AddHostedService<AuthSessionPurgeBackgroundService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -517,26 +523,33 @@ builder.Services
             },
             OnTokenValidated = async context =>
             {
-                var userIdClaim = context.Principal?
-                    .FindFirst(ClaimTypes.NameIdentifier)?
-                    .Value;
-
-                if (!Guid.TryParse(userIdClaim, out var userId) || userId == Guid.Empty)
+                var principal = context.Principal;
+                if (!TryReadGuid(principal, ClaimTypes.NameIdentifier, out var userId) ||
+                    !TryReadGuid(principal, AuthClaimTypes.SessionId, out var sessionId) ||
+                    !TryReadGuid(principal, AuthClaimTypes.SecurityStamp, out var securityStamp))
                 {
                     context.Fail("Token validation failed.");
                     return;
                 }
 
-                var dbContext = context.HttpContext.RequestServices
-                    .GetRequiredService<AppDbContext>();
+                var services = context.HttpContext.RequestServices;
+                var dbContext = services.GetRequiredService<AppDbContext>();
+                var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
 
-                var isActiveUser = await dbContext.Users
+                // One read, no write: the session must be live and the user's
+                // security stamp unchanged since the token was issued.
+                var isValid = await dbContext.AuthSessions
                     .AsNoTracking()
                     .AnyAsync(
-                        user => user.Id == userId && user.IsActive,
+                        session => session.Id == sessionId &&
+                            session.UserId == userId &&
+                            session.RevokedAt == null &&
+                            session.AbsoluteExpiresAt > now &&
+                            session.User.IsActive &&
+                            session.User.SecurityStamp == securityStamp,
                         context.HttpContext.RequestAborted);
 
-                if (!isActiveUser)
+                if (!isValid)
                 {
                     context.Fail("Token validation failed.");
                 }
@@ -795,6 +808,9 @@ app.MapGet("/health/version", (HttpContext context) =>
 app.MapControllers();
 
 app.Run();
+
+static bool TryReadGuid(ClaimsPrincipal? principal, string claimType, out Guid value) =>
+    Guid.TryParse(principal?.FindFirst(claimType)?.Value, out value) && value != Guid.Empty;
 
 static void ValidateJwtConfiguration(JwtOptions options)
 {

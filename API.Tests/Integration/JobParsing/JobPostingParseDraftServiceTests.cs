@@ -580,6 +580,8 @@ public sealed class JobPostingParseDraftServiceTests : IntegrationTestBase
 
     private sealed class TestCurrentUserService : ICurrentUserService
     {
+        public Guid? SessionId => null;
+
         public TestCurrentUserService(Guid userId)
         {
             UserId = userId;

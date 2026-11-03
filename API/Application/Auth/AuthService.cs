@@ -16,21 +16,25 @@ public sealed class AuthService : IAuthService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAuthSessionService _sessionService;
 
     public AuthService(
         AppDbContext dbContext,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAuthSessionService sessionService)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
         _currentUserService = currentUserService;
+        _sessionService = sessionService;
     }
 
     public async Task<AuthResponse> RegisterAsync(
         RegisterRequest request,
+        string? userAgent,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -64,12 +68,12 @@ public sealed class AuthService : IAuthService
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var accessToken = _jwtTokenService.GenerateAccessToken(user);
-        return CreateAuthResponse(user, accessToken);
+        return await StartSessionAsync(user, userAgent, cancellationToken);
     }
 
     public async Task<AuthResponse> LoginAsync(
         LoginRequest request,
+        string? userAgent,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -101,7 +105,21 @@ public sealed class AuthService : IAuthService
         user.LastLoginAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var accessToken = _jwtTokenService.GenerateAccessToken(user);
+        return await StartSessionAsync(user, userAgent, cancellationToken);
+    }
+
+    // The refresh token is not issued yet: it will travel only in an HttpOnly
+    // cookie, never in a response body.
+    private async Task<AuthResponse> StartSessionAsync(
+        User user,
+        string? userAgent,
+        CancellationToken cancellationToken)
+    {
+        var session = await _sessionService.StartAsync(
+            user,
+            DeviceLabel.FromUserAgent(userAgent),
+            cancellationToken);
+        var accessToken = _jwtTokenService.GenerateAccessToken(user, session.Id);
         return CreateAuthResponse(user, accessToken);
     }
 

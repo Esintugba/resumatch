@@ -23,7 +23,7 @@ public sealed class JwtTokenService : IJwtTokenService
             JwtSigningKeyMaterial.Decode(_options.SecretKey));
     }
 
-    public AccessTokenResult GenerateAccessToken(User user)
+    public AccessTokenResult GenerateAccessToken(User user, Guid sessionId)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -32,13 +32,22 @@ public sealed class JwtTokenService : IJwtTokenService
             throw new ArgumentException("A non-empty user identifier is required.", nameof(user));
         }
 
+        if (sessionId == Guid.Empty)
+        {
+            throw new ArgumentException("A non-empty session identifier is required.", nameof(sessionId));
+        }
+
+        // JwtBearer validates nbf and exp against the system clock, so the token
+        // uses it too. Session lifetimes use TimeProvider.
         var issuedAt = DateTimeOffset.UtcNow;
         var expiresAt = issuedAt.AddMinutes(_options.AccessTokenExpirationMinutes);
 
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString("D")),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("D"))
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("D")),
+            new Claim(AuthClaimTypes.SessionId, sessionId.ToString("D")),
+            new Claim(AuthClaimTypes.SecurityStamp, user.SecurityStamp.ToString("D"))
         };
 
         var signingCredentials = new SigningCredentials(

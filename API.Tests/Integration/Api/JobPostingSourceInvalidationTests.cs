@@ -694,6 +694,7 @@ public sealed class JobPostingSourceInvalidationTests : ApiIntegrationTestBase
         ICurrentUserService
     {
         public Guid? UserId => userId;
+        public Guid? SessionId => null;
         public string? Email => "source-owner@example.com";
         public bool IsAuthenticated => true;
         public Guid GetRequiredUserId() => userId;
