@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.ComponentModel.DataAnnotations;
 using Api.Application.Common;
 using Api.Application.Common.Exceptions;
@@ -52,10 +53,7 @@ public sealed class SkillService : ISkillService
             }
 
             searchTerm = SkillSearchText.Normalize(search);
-            var term = searchTerm;
-            query = query.Where(skill =>
-                skill.NormalizedName.Contains(term) ||
-                (skill.NormalizedNameTr != null && skill.NormalizedNameTr.Contains(term)));
+            query = ApplySearch(query, searchTerm);
         }
 
         if (category.HasValue)
@@ -63,10 +61,11 @@ public sealed class SkillService : ISkillService
             query = query.Where(skill => skill.Category == category.Value);
         }
 
-        // Short terms match inside many names, so the closest matches come first.
         var skills = await query
             .OrderBy(skill =>
-                skill.NormalizedName == searchTerm || skill.NormalizedNameTr == searchTerm
+                skill.NormalizedName == searchTerm ||
+                skill.NormalizedNameTr == searchTerm ||
+                skill.SearchAliases.Contains(searchTerm)
                     ? 0
                     : skill.NormalizedName.StartsWith(searchTerm) ||
                         (skill.NormalizedNameTr != null &&
@@ -84,6 +83,41 @@ public sealed class SkillService : ISkillService
             .Select(skill => skill.ToResponse())
             .ToList();
     }
+
+    // Short terms match inside too many names, so the rules widen with length:
+    // one character matches exactly, two also match at the start of a word, and
+    // three or more match anywhere. Aliases only ever match exactly.
+    private static IQueryable<Entities.Skill> ApplySearch(
+        IQueryable<Entities.Skill> query,
+        string term)
+    {
+        if (term.Length == 1)
+        {
+            return query.Where(skill =>
+                skill.NormalizedName == term ||
+                skill.NormalizedNameTr == term ||
+                skill.SearchAliases.Contains(term));
+        }
+
+        if (term.Length == 2)
+        {
+            var wordStart = "(^|[^[:alnum:]])" + EscapeForRegex(term);
+            return query.Where(skill =>
+                skill.SearchAliases.Contains(term) ||
+                Regex.IsMatch(skill.NormalizedName, wordStart) ||
+                (skill.NormalizedNameTr != null &&
+                    Regex.IsMatch(skill.NormalizedNameTr, wordStart)));
+        }
+
+        return query.Where(skill =>
+            skill.SearchAliases.Contains(term) ||
+            skill.NormalizedName.Contains(term) ||
+            (skill.NormalizedNameTr != null && skill.NormalizedNameTr.Contains(term)));
+    }
+
+    private static string EscapeForRegex(string value) =>
+        string.Concat(value.Select(character =>
+            char.IsLetterOrDigit(character) ? character.ToString() : "\\" + character));
 
     public async Task<IReadOnlyList<ResumeSkillResponse>> GetResumeSkillsAsync(
         Guid resumeId,

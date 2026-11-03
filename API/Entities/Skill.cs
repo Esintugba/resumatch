@@ -9,5 +9,8 @@ public class Skill : BaseEntity
     public string? NameTr { get; set; }
     public string? NormalizedNameTr { get; set; }
 
+    // Folded search terms that point to this skill. Search only; never matched.
+    public string[] SearchAliases { get; set; } = [];
+
     public SkillCategory Category { get; set; }
 }
