@@ -358,7 +358,7 @@ Aşama A'ya ek olarak:
 | # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
 |---|---|---|---|---|---|
 | 3b | İlana elle beceri ekleme | Hayır | Evet | OpenAI kapalıyken ilana beceri eklemenin tek yolu | Katalogdan beceri ekleme ve çıkarma. İş eşleştirmesi betada buna dayanır. |
-| 3c | Beceri takma adları | Onaya bağlı | Evet | Yalnızca aramayı etkiler, ayrı onay gerekir | `JS`, `TS`, `K8s`, `Golang`, `Shell Scripting` gibi adların aramada kanonik kayda gitmesi |
+| 3c | Beceri takma adları | **Evet** | Evet | Yalnızca aramayı etkiler, ayrı onay gerekir | `Skills.SearchAliases`, 79 takma ad, yeni `Artificial Intelligence` kaydı, uzunluğa göre arama kuralları. Arayüzde en az karakter sınırı yok. |
 
 ### Aşama B: İnce dikey akış
 
