@@ -114,11 +114,13 @@ docs/operations/    Production operations documentation
 ## Operations documentation
 
 - [API error codes](docs/api/error-codes.md): stable error codes and the enum contract
+- [Authentication and sessions](docs/api/authentication.md): access tokens, sessions, refresh token rotation
 - [Skill catalog](docs/api/skill-catalog.md): catalog source, search behavior and the unlisted skills note
 - [Deployment contract](docs/operations/deployment.md): probes, migrations, canary, rollback, HTTP security and proxy settings
 - [Runbooks](docs/operations/runbooks.md)
 - [SLOs](docs/operations/slo.md)
 - [Alerts](docs/operations/alerts.md)
 - [Staging smoke test](docs/operations/staging-smoke-test.md)
+- [Change and merge policy](docs/operations/change-and-merge-policy.md)
 
 `API/appsettings.Production.example.json` documents the production configuration shape with placeholder values; inject real secrets from a secret manager.

@@ -179,17 +179,17 @@ public sealed class JobPostingSkillProvenanceMigrationTests : IntegrationTestBas
         AppDbContext context,
         CancellationToken cancellationToken)
     {
-        var user = new User
-        {
-            FirstName = "Down",
-            LastName = "Migration",
-            Email = $"down-{Guid.NewGuid():N}@example.com",
-            PasswordHash = "integration-test-hash",
-            IsActive = true
-        };
+        // Raw SQL, because this schema predates later columns of the User entity.
+        var userId = Guid.NewGuid();
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "Users" ("Id", "FirstName", "LastName", "Email", "PasswordHash", "IsActive", "IsEmailVerified", "CreatedAt")
+            VALUES ({userId}, 'Down', 'Migration', {$"down-{Guid.NewGuid():N}@example.com"}, 'integration-test-hash', true, false, now());
+            """,
+            cancellationToken);
         var posting = new JobPosting
         {
-            UserId = user.Id,
+            UserId = userId,
             Title = "Backend Engineer",
             Description = "C# required.",
             Status = JobPostingStatus.Draft
@@ -211,7 +211,7 @@ public sealed class JobPostingSkillProvenanceMigrationTests : IntegrationTestBas
             IsAiDetected = false,
             ProvenanceStatus = JobPostingSkillProvenanceStatus.Manual
         };
-        context.AddRange(user, posting, requirement);
+        context.AddRange(posting, requirement);
         await context.SaveChangesAsync(cancellationToken);
         return requirement.Id;
     }

@@ -35,6 +35,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex("NormalizedEmail")
             .IsUnique();
 
+        builder.Property(user => user.SecurityStamp)
+            .IsRequired()
+            .HasDefaultValueSql("gen_random_uuid()");
+
         builder.Property(user => user.PasswordHash)
             .IsRequired()
             .HasMaxLength(500);

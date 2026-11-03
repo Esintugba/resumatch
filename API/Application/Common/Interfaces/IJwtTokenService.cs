@@ -5,5 +5,5 @@ namespace Api.Application.Common.Interfaces;
 
 public interface IJwtTokenService
 {
-    AccessTokenResult GenerateAccessToken(User user);
+    AccessTokenResult GenerateAccessToken(User user, Guid sessionId);
 }

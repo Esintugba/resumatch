@@ -17,7 +17,7 @@ namespace API.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -538,6 +538,53 @@ namespace API.Migrations
                     b.ToTable("AnalysisRecommendations", null, t =>
                         {
                             t.HasCheckConstraint("CK_AnalysisRecommendations_SortOrder", "\"SortOrder\" IS NULL OR \"SortOrder\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Api.Entities.AuthSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AbsoluteExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("IdleExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short?>("RevokedReason")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AbsoluteExpiresAt");
+
+                    b.HasIndex("UserId", "RevokedAt");
+
+                    b.ToTable("AuthSessions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AuthSessions_Lifetime", "\"IdleExpiresAt\" <= \"AbsoluteExpiresAt\"");
+
+                            t.HasCheckConstraint("CK_AuthSessions_Revocation", "(\"RevokedAt\" IS NULL) = (\"RevokedReason\" IS NULL)");
                         });
                 });
 
@@ -1113,6 +1160,40 @@ namespace API.Migrations
                         .IsUnique();
 
                     b.ToTable("ProjectSkills", (string)null);
+                });
+
+            modelBuilder.Entity("Api.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("RefreshTokens", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RefreshTokens_TokenHashLength", "octet_length(\"TokenHash\") = 32");
+                        });
                 });
 
             modelBuilder.Entity("Api.Entities.Resume", b =>
@@ -1864,6 +1945,11 @@ namespace API.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<Guid>("SecurityStamp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1914,6 +2000,17 @@ namespace API.Migrations
                         .IsRequired();
 
                     b.Navigation("ResumeAnalysis");
+                });
+
+            modelBuilder.Entity("Api.Entities.AuthSession", b =>
+                {
+                    b.HasOne("Api.Entities.User", "User")
+                        .WithMany("Sessions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Api.Entities.ExperienceBullet", b =>
@@ -2079,6 +2176,17 @@ namespace API.Migrations
                     b.Navigation("Skill");
                 });
 
+            modelBuilder.Entity("Api.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("Api.Entities.AuthSession", "Session")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
             modelBuilder.Entity("Api.Entities.Resume", b =>
                 {
                     b.HasOne("Api.Entities.User", "User")
@@ -2235,6 +2343,11 @@ namespace API.Migrations
                     b.Navigation("Periods");
                 });
 
+            modelBuilder.Entity("Api.Entities.AuthSession", b =>
+                {
+                    b.Navigation("RefreshTokens");
+                });
+
             modelBuilder.Entity("Api.Entities.JobPosting", b =>
                 {
                     b.Navigation("Applications");
@@ -2305,6 +2418,8 @@ namespace API.Migrations
                     b.Navigation("JobPostings");
 
                     b.Navigation("Resumes");
+
+                    b.Navigation("Sessions");
                 });
 #pragma warning restore 612, 618
         }

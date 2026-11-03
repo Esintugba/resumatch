@@ -34,6 +34,15 @@ public sealed class CurrentUserService : ICurrentUserService
         }
     }
 
+    public Guid? SessionId =>
+        IsAuthenticated &&
+        Guid.TryParse(
+            _httpContextAccessor.HttpContext?.User.FindFirstValue(AuthClaimTypes.SessionId),
+            out var sessionId) &&
+        sessionId != Guid.Empty
+            ? sessionId
+            : null;
+
     public string? Email => IsAuthenticated
         ? _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
         : null;

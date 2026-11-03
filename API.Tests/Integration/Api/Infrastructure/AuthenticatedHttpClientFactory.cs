@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Api.Application.Common.Interfaces;
 using Api.Data;
 using Api.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
@@ -52,11 +53,37 @@ public sealed class AuthenticatedHttpClientFactory
                 nameof(user));
         }
 
-        var tokenService = _application.Services
-            .GetRequiredService<IJwtTokenService>();
-        var accessToken = tokenService.GenerateAccessToken(user);
+        return CreateWithBearerToken(CreateAccessToken(user));
+    }
 
-        return CreateWithBearerToken(accessToken.Token);
+    /// <summary>
+    /// Opens a session row for an existing user and returns a token for it.
+    /// Written directly, so it also works for inactive users.
+    /// </summary>
+    public string CreateAccessToken(User user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        using var scope = _application.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = dbContext.Users.AsNoTracking().Single(item => item.Id == user.Id);
+        // The application clock, which some tests move, decides session validity.
+        var now = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow();
+        var session = new AuthSession
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            CreatedAt = now,
+            LastUsedAt = now,
+            IdleExpiresAt = now.AddDays(365),
+            AbsoluteExpiresAt = now.AddDays(365)
+        };
+        dbContext.AuthSessions.Add(session);
+        dbContext.SaveChanges();
+
+        return scope.ServiceProvider
+            .GetRequiredService<IJwtTokenService>()
+            .GenerateAccessToken(stored, session.Id)
+            .Token;
     }
 
     public HttpClient CreateWithBearerToken(string token)

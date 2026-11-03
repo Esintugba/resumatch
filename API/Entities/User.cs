@@ -14,7 +14,11 @@ public class User : BaseEntity
 
     public DateTimeOffset? LastLoginAt { get; set; }
 
+    // Changing it invalidates every access token issued before.
+    public Guid SecurityStamp { get; set; } = Guid.NewGuid();
+
     public ICollection<Resume> Resumes { get; set; } = new List<Resume>();
     public ICollection<JobPosting> JobPostings { get; set; } = new List<JobPosting>();
     public ICollection<JobApplication> JobApplications { get; set; } = new List<JobApplication>();
+    public ICollection<AuthSession> Sessions { get; set; } = new List<AuthSession>();
 }

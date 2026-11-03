@@ -1179,6 +1179,7 @@ public sealed class JobPostingParseDraftConfirmationEndpointTests :
         ICurrentUserService
     {
         public Guid? UserId => userId;
+        public Guid? SessionId => null;
         public string? Email => "confirmation@example.com";
         public bool IsAuthenticated => true;
         public Guid GetRequiredUserId() => userId;

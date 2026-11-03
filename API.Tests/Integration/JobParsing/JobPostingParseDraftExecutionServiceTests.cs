@@ -1106,6 +1106,8 @@ public sealed class JobPostingParseDraftExecutionServiceTests :
 
     private sealed class TestCurrentUserService : ICurrentUserService
     {
+        public Guid? SessionId => null;
+
         public TestCurrentUserService(Guid userId) => UserId = userId;
         public Guid? UserId { get; }
         public string? Email => "execution@example.com";

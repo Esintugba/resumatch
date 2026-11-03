@@ -594,6 +594,7 @@ public sealed class JobPostingSkillAdoptionEndpointTests : ApiIntegrationTestBas
         ICurrentUserService
     {
         public Guid? UserId => userId;
+        public Guid? SessionId => null;
         public string? Email => "adoption@example.com";
         public bool IsAuthenticated => true;
         public Guid GetRequiredUserId() => userId;

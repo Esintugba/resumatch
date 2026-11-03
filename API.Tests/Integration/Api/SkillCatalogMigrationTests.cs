@@ -222,16 +222,15 @@ public sealed class SkillCatalogMigrationTests(PostgreSqlFixture fixture)
     {
         await using var dbContext = CreateContext();
         var skill = await dbContext.Skills.SingleAsync(item => item.NormalizedName == normalizedName);
-        var user = new User
-        {
-            FirstName = "Catalog",
-            LastName = "Test",
-            Email = "catalog@example.com",
-            PasswordHash = "integration-test-hash",
-            IsActive = true
-        };
-        var resume = new Resume { UserId = user.Id, Title = "Main", IsMasterResume = true };
-        dbContext.AddRange(user, resume, new ResumeSkill { ResumeId = resume.Id, SkillId = skill.Id });
+        // Raw SQL, because this schema predates later columns of the User entity.
+        var userId = Guid.NewGuid();
+        await ExecuteAsync(
+            $"""
+            INSERT INTO "Users" ("Id", "FirstName", "LastName", "Email", "PasswordHash", "IsActive", "IsEmailVerified", "CreatedAt")
+            VALUES ('{userId}', 'Catalog', 'Test', 'catalog@example.com', 'integration-test-hash', true, false, now());
+            """);
+        var resume = new Resume { UserId = userId, Title = "Main", IsMasterResume = true };
+        dbContext.AddRange(resume, new ResumeSkill { ResumeId = resume.Id, SkillId = skill.Id });
         await dbContext.SaveChangesAsync();
         return skill.Id;
     }
