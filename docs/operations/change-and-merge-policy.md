@@ -14,3 +14,5 @@ A merge to `main` deploys to production and applies pending migrations to Neon. 
 6. **Failures.** If a migration or deploy fails, stop. Do not retry and do not run `Down`; report what happened.
 
 A pull request that contains a migration needs approval for the migration as well, because merging applies it.
+
+[`scripts/merge-pr.sh`](../../scripts/merge-pr.sh) applies rules 2 and 4–6: it checks the pull request against the approval and CI, merges once without retrying, and verifies production. It stops on the first mismatch or failure.
