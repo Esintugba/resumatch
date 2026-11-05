@@ -23,13 +23,17 @@ public sealed class RequireCsrfProtectionAttribute : Attribute, IAsyncResourceFi
         ResourceExecutionDelegate next)
     {
         var request = context.HttpContext.Request;
-        var allowedOrigins = context.HttpContext.RequestServices
+        var services = context.HttpContext.RequestServices;
+        var allowedOrigins = services
             .GetRequiredService<IOptions<HttpSecurityOptions>>()
             .Value.AllowedOrigins;
+        var allowHttpReferer = !services
+            .GetRequiredService<IHostEnvironment>()
+            .IsProduction();
 
         var reason = !HasHeader(request)
             ? "csrf_header"
-            : !IsAllowedOrigin(RequestOrigin(request), allowedOrigins)
+            : !IsAllowedOrigin(RequestOrigin(request, allowHttpReferer), allowedOrigins)
                 ? "csrf_origin"
                 : null;
         if (reason is null)
@@ -64,7 +68,9 @@ public sealed class RequireCsrfProtectionAttribute : Attribute, IAsyncResourceFi
 
     // Browsers send Origin on every POST; Referer is only a fallback for
     // clients that omit it. Neither present means the request is rejected.
-    private static string? RequestOrigin(HttpRequest request)
+    // In production a credentialed origin must be HTTPS, and the fallback
+    // follows the same rule.
+    internal static string? RequestOrigin(HttpRequest request, bool allowHttpReferer)
     {
         var origin = request.Headers.Origin;
         if (origin.Count > 0)
@@ -75,7 +81,8 @@ public sealed class RequireCsrfProtectionAttribute : Attribute, IAsyncResourceFi
         var referer = request.Headers.Referer;
         return referer.Count == 1 &&
             Uri.TryCreate(referer[0], UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+            (uri.Scheme == Uri.UriSchemeHttps ||
+                (allowHttpReferer && uri.Scheme == Uri.UriSchemeHttp))
             ? uri.GetLeftPart(UriPartial.Authority)
             : null;
     }

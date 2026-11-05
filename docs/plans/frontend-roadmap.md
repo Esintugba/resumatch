@@ -2,6 +2,8 @@
 
 Durum: Kararlar verildi, uygulama PR 1 ile başlıyor. İnceleme tarihi: 2026-11-01, `main` commit'i `f459c56`. `alanadi.com`, seçilecek alan adı için yer tutucudur.
 
+> **Ertelendi (2026-11-05):** Alan adı, yayın ve ücretli plan önerileri ertelendi, PR 19'da karar verilecek. PR 19'a kadar her şey yerelde geliştirilip test edilir. Render'daki ücretsiz API deploy hattı test için çalışmaya devam eder.
+
 Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. Belgedeki hukuk notları hukuki görüş değildir. Fiyatlar kaynak listesindeki tarihte okunmuştur ve değişebilir.
 
 ## Özet
@@ -11,7 +13,7 @@ Bu belge bir plandır. Kod, migration veya canlı veri değişikliği içermez. 
 - **Hesap yaşam döngüsü eksik:** Hesap silme, veri dışa aktarma, şifre değiştirme ve sıfırlama, e-posta doğrulama, rıza kaydı yok.
 - **Özgeçmiş verisi OpenAI'ye gitmiyor.** Yalnızca iş ilanının başlığı ve açıklaması gidiyor. OpenAI şu an kapalı.
 - **Sıra:** Önce zorunlu backend temeli, sonra giriş → özgeçmiş → ATS analizi akışı, ardından kalan backend işleri. Beta kapısı değişmez.
-- **Maliyet:** Geliştirmede yalnızca alan adı (yılda yaklaşık 11 dolar), beta öncesi aylık yaklaşık 12 dolar (bölüm 8).
+- **Maliyet:** Geliştirmede 0 (alan adı ertelendi). Beta öncesi tahmin aylık yaklaşık 12 dolar, ama ücretli planlar ertelendi, PR 19'da karar verilecek (bölüm 8).
 - **Kapalı beta planı:** 23 PR. Migration içeren her PR için ayrı onay gerekir (bölüm 7).
 - **Kararlar:** Tümü verildi (bölüm 8). Veri sorumlusu yapısı avukatla netleşene kadar davet gönderilmez.
 
@@ -341,7 +343,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ## 7. Yol haritası
 
-Her satır tek PR'dır. Kapalı beta için 23 PR vardır. Sonradan eklenen PR 3b ve 3c, diğer numaralar değişmesin diye bu adla duruyor. **Migration içeren her PR, migration uygulanmadan önce ayrıca onayını ister.** Alan adı yayına alınana kadar ekranlar yerelde geliştirilir, ama backend PR'ları merge edilince canlı API'ye deploy olur.
+Her satır tek PR'dır. Kapalı beta için 23 PR vardır. Sonradan eklenen PR 3b ve 3c, diğer numaralar değişmesin diye bu adla duruyor. **Migration içeren her PR, migration uygulanmadan önce ayrıca onayını ister.** **Alan adı ve yayın ertelendi, PR 19'da karar verilecek.** O zamana kadar ekranlar yerelde geliştirilip test edilir. Backend PR'ları merge edilince Render'daki ücretsiz API'ye deploy olmaya devam eder; bu hat yalnızca test içindir.
 
 ### Aşama A: Zorunlu backend temeli
 
@@ -396,7 +398,7 @@ Akış çalıştıktan sonra her PR kendi API'si ve ekranıyla birlikte gelir.
 
 | # | PR | Migration | Beta şartı | Neden ayrı | İçerik |
 |---|---|---|---|---|---|
-| 19 | Üretim yayını | Hayır | Evet | Alan adına bağlı tek değişiklik | Static Site, `alanadi.com`, `api.alanadi.com`, CSP, CORS, deploy sırası, iki istemci testini yenileme |
+| 19 | Üretim yayını | Hayır | Evet | Alan adına bağlı tek değişiklik | **Ertelendi: alan adı, yayın zamanı ve ücretli planlar bu PR'da kararlaştırılır.** Static Site, `alanadi.com`, `api.alanadi.com`, CSP, CORS, deploy sırası, iki istemci testini yenileme |
 | 20 | Yedek ve geri yükleme runbook'u | Hayır | Evet | İşletme kanıtı, kod değil | Neon Launch ayarı, geri yükleme adımları, tatbikat sonucu |
 | 21 | Hukuki metinlerin yayını | Hayır | Evet | Avukat görüşüne bağlı, zamanı dışarıdan belirlenir | Onaylı metinler ve sürüm kaydı |
 
@@ -467,6 +469,8 @@ Tutarlar ABD dolarıdır, vergi hariçtir.
 
 ### Maliyet aşamaları
 
+**Ertelendi, PR 19'da karar verilecek:** Alan adı ve "Beta öncesi" satırındaki ücretli planlar. Şu an hiçbir şey satın alınmaz; geliştirme Render ve Neon ücretsiz planlarında sürer. Aşağıdaki tutarlar o karar için öneridir.
+
 | Aşama | Kalemler | Aylık | Yıllık eşdeğer |
 |---|---|---|---|
 | **Geliştirme** | Yalnızca `.com` alan adı. Render ve Neon ücretsiz plan. | ~0,93 | ~11,17 |
@@ -497,10 +501,10 @@ Avukat görüşü tek seferlik gider ve beta çıkış şartıdır. Burada fiyat
 | Konu | Karar |
 |---|---|
 | Kimlik doğrulama | Seçenek A: Rotasyon, tekrar kullanım tespiti, oturum iptali, CSRF dahil |
-| Alan adı | `.com`, `alanadi.com` ve `api.alanadi.com`. Ad sonra seçilecek. |
+| Alan adı | **Ertelendi, PR 19'da karar verilecek.** Hedef yapı `.com`, `alanadi.com` ve `api.alanadi.com`. |
 | Beceri kataloğu | Küratörlü liste ve "katalogda yok" notu, otomatik ekleme yok |
-| Hosting zamanı | Beta öncesi Render Starter |
-| Yedekleme | Beta öncesi Neon Launch, geri yükleme denemesi beta çıkış şartı |
+| Hosting zamanı | **Ertelendi, PR 19'da karar verilecek.** Öneri: beta öncesi Render Starter. |
+| Yedekleme | **Ertelendi, PR 19'da karar verilecek.** Öneri: beta öncesi Neon Launch. Geri yükleme denemesi beta çıkış şartı olarak kalır. |
 | Hukuk | Avukat görüşü beta çıkış şartı |
 | OpenAI | Betada kapalı, parse isteği açık hata döner |
 
@@ -508,9 +512,9 @@ Avukat görüşü tek seferlik gider ve beta çıkış şartıdır. Burada fiyat
 
 | Karar | Onaylanan | Neden | Maliyet | Sonra değiştirmesi |
 |---|---|---|---|---|
-| Hosting: Starter ne zaman açılacak | PR 19 ile, davetten en az 1 hafta önce | Geliştirmede para harcamaz, yayını gerçek koşulda dener | 7/ay | **Kolay.** Plan değişir, kod değişmez. |
-| Yedekleme: Neon Launch yeterli mi | 7 gün geçmiş yeterli. Harici `pg_dump` lansman öncesi yeniden değerlendirilir. | Harici yedek ek hesap ve gizli değer ister | ~4/ay, harici yedek ek | **Kolay**, ama kaçırılan geçmiş geri gelmez. |
-| E-posta sağlayıcısı | Resend Free, `mail.alanadi.com` gönderen alan adı, SPF ve DKIM | Beta hacmine yeter, alt alan ana alan adının itibarını korur | 0. 3.000/ay üstü 20/ay. | **Kolay.** Soyutlama arkasında, DNS ve itibar yeniden kurulur. |
+| Hosting: Starter ne zaman açılacak | **Ertelendi, PR 19'da karar verilecek.** Öneri: PR 19 ile, davetten en az 1 hafta önce | Geliştirmede para harcamaz, yayını gerçek koşulda dener | 7/ay | **Kolay.** Plan değişir, kod değişmez. |
+| Yedekleme: Neon Launch yeterli mi | **Ertelendi, PR 19'da karar verilecek.** Öneri: 7 gün geçmiş yeterli. Harici `pg_dump` lansman öncesi yeniden değerlendirilir. | Harici yedek ek hesap ve gizli değer ister | ~4/ay, harici yedek ek | **Kolay**, ama kaçırılan geçmiş geri gelmez. |
+| E-posta sağlayıcısı | Resend Free, `mail.alanadi.com` gönderen alan adı, SPF ve DKIM. Gerçek gönderim alan adına bağlı olduğu için PR 19'a kalır; PR 11 yerelde sahte göndericiyle test edilir. | Beta hacmine yeter, alt alan ana alan adının itibarını korur | 0. 3.000/ay üstü 20/ay. | **Kolay.** Soyutlama arkasında, DNS ve itibar yeniden kurulur. |
 | Hukuki yapı: Veri sorumlusu kim | Avukatla şahıs veya şirket yapısını netleştir | Metinler, aktarım ve sorumluluk buna bağlı | Teklif alınmalı | **Zor.** Değişirse metinler ve rıza yenilenir. |
 | OpenAI: Lansmanda açılma ölçütü | Beta geri bildirimi parse ihtiyacını gösterirse aç | Kapalı beta bu veri riskini taşımaz, ürün değeri önce ölçülür | Betada 0. Sonrası model ve bütçeye bağlı. | **Kolay** teknik olarak. Hukuki metin önceden hazır olmalı. |
 | Hesap silme biçimi | 7 gün geri alma, bu sürede giriş kapalı, sonra kalıcı silme | Yanlışlıkla silmeyi kurtarır, süre gizlilik metninde yazılır | 0 | **Orta.** Şema ve metin değişir. Kalıcı silinen veri geri gelmez. |
