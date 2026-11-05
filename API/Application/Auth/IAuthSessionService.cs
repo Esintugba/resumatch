@@ -25,10 +25,7 @@ public interface IAuthSessionService
         string? deviceLabel,
         CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Creates the first refresh token of an active session. Not exposed over
-    /// HTTP until the cookie transport exists.
-    /// </summary>
+    /// <summary>Creates the first refresh token of an active session.</summary>
     Task<string> IssueRefreshTokenAsync(
         Guid sessionId,
         CancellationToken cancellationToken);
@@ -45,6 +42,15 @@ public interface IAuthSessionService
     Task<bool> RevokeAsync(
         Guid userId,
         Guid sessionId,
+        AuthSessionRevocationReason reason,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Revokes the session a refresh token belongs to. False when the token is
+    /// unknown or its session is already revoked.
+    /// </summary>
+    Task<bool> RevokeByRefreshTokenAsync(
+        string? refreshToken,
         AuthSessionRevocationReason reason,
         CancellationToken cancellationToken);
 

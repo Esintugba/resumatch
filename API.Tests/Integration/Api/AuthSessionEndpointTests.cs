@@ -37,7 +37,7 @@ public sealed class AuthSessionEndpointTests : AnalysisApiTestBase
         var session = await dbContext.AuthSessions.AsNoTracking().SingleAsync(item => item.Id == sessionId);
         Assert.Equal("Chrome on Windows", session.DeviceLabel);
         Assert.Equal(2, await dbContext.AuthSessions.CountAsync());
-        Assert.Equal(0, await dbContext.RefreshTokens.CountAsync());
+        Assert.Equal(2, await dbContext.RefreshTokens.CountAsync(token => token.ConsumedAt == null));
     }
 
     [Fact]
@@ -187,11 +187,11 @@ public sealed class AuthSessionEndpointTests : AnalysisApiTestBase
     }
 
     [Fact]
-    public async Task LoginResponse_DoesNotContainARefreshToken()
+    public async Task LoginResponse_CarriesTheRefreshTokenOnlyInTheCookie()
     {
         using var cancellation = CreateCancellation();
         await RegisterAsync("body@example.com", cancellation.Token);
-        using var client = Application.CreateHttpsClient();
+        using var client = Application.CreateHttpsClient(handleCookies: false);
 
         using var response = await client.PostAsJsonAsync(
             "/api/auth/login",
@@ -200,7 +200,9 @@ public sealed class AuthSessionEndpointTests : AnalysisApiTestBase
 
         var body = await response.Content.ReadAsStringAsync(cancellation.Token);
         Assert.DoesNotContain("refresh", body, StringComparison.OrdinalIgnoreCase);
-        Assert.False(response.Headers.Contains("Set-Cookie"));
+        var setCookie = Assert.Single(response.Headers.GetValues("Set-Cookie"));
+        Assert.StartsWith("__Host-resumatch_refresh=", setCookie, StringComparison.Ordinal);
+        Assert.DoesNotContain(setCookie.Split(';')[0].Split('=')[1], body, StringComparison.Ordinal);
     }
 
     private HttpClient Bearer(string token)

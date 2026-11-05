@@ -57,6 +57,10 @@ expect_status "capabilities are available" 200 /api/capabilities
 expect_status "missing token is rejected" 401 /api/resumes
 expect_status "invalid token is rejected" 401 /api/resumes \
   --header "Authorization: Bearer not-a-valid-token"
+expect_status "refresh without the CSRF header is rejected" 403 /api/auth/refresh \
+  --request POST
+expect_status "refresh from an unknown origin is rejected" 403 /api/auth/refresh \
+  --request POST --header "X-ResuMatch-CSRF: 1" --header "Origin: https://smoke.invalid"
 expect_status "OpenAPI document is closed" 401 /openapi/v1.json
 expect_status "Swagger UI is closed" 401 /swagger/index.html
 

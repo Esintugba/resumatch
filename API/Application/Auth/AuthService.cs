@@ -4,6 +4,7 @@ using Api.Application.Common.Models;
 using Api.Data;
 using Api.DTOs.Auth;
 using Api.Entities;
+using Api.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Application.Auth;
@@ -32,7 +33,7 @@ public sealed class AuthService : IAuthService
         _sessionService = sessionService;
     }
 
-    public async Task<AuthResponse> RegisterAsync(
+    public async Task<AuthenticationResult> RegisterAsync(
         RegisterRequest request,
         string? userAgent,
         CancellationToken cancellationToken)
@@ -71,7 +72,7 @@ public sealed class AuthService : IAuthService
         return await StartSessionAsync(user, userAgent, cancellationToken);
     }
 
-    public async Task<AuthResponse> LoginAsync(
+    public async Task<AuthenticationResult> LoginAsync(
         LoginRequest request,
         string? userAgent,
         CancellationToken cancellationToken)
@@ -108,9 +109,41 @@ public sealed class AuthService : IAuthService
         return await StartSessionAsync(user, userAgent, cancellationToken);
     }
 
-    // The refresh token is not issued yet: it will travel only in an HttpOnly
-    // cookie, never in a response body.
-    private async Task<AuthResponse> StartSessionAsync(
+    public async Task<RefreshOutcome> RefreshAsync(
+        string? refreshToken,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sessionService.RefreshAsync(
+            refreshToken ?? string.Empty,
+            cancellationToken);
+        if (result.Status != RefreshStatus.Succeeded)
+        {
+            return new RefreshOutcome(result.Status);
+        }
+
+        // The user was read in the rotation transaction, so the new access
+        // token carries the current security stamp.
+        var session = result.Session!;
+        var accessToken = _jwtTokenService.GenerateAccessToken(session.User, session.Id);
+        return new RefreshOutcome(
+            RefreshStatus.Succeeded,
+            new AuthenticationResult(
+                CreateAuthResponse(session.User, accessToken),
+                result.RefreshToken!,
+                session.IdleExpiresAt));
+    }
+
+    public async Task LogoutAsync(
+        string? refreshToken,
+        CancellationToken cancellationToken)
+    {
+        await _sessionService.RevokeByRefreshTokenAsync(
+            refreshToken,
+            AuthSessionRevocationReason.SignedOut,
+            cancellationToken);
+    }
+
+    private async Task<AuthenticationResult> StartSessionAsync(
         User user,
         string? userAgent,
         CancellationToken cancellationToken)
@@ -119,8 +152,14 @@ public sealed class AuthService : IAuthService
             user,
             DeviceLabel.FromUserAgent(userAgent),
             cancellationToken);
+        var refreshToken = await _sessionService.IssueRefreshTokenAsync(
+            session.Id,
+            cancellationToken);
         var accessToken = _jwtTokenService.GenerateAccessToken(user, session.Id);
-        return CreateAuthResponse(user, accessToken);
+        return new AuthenticationResult(
+            CreateAuthResponse(user, accessToken),
+            refreshToken,
+            session.IdleExpiresAt);
     }
 
     public async Task<CurrentUserResponse> GetCurrentUserAsync(

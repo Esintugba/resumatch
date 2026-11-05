@@ -175,7 +175,11 @@ builder.Services.AddCors(options => options.AddPolicy(
         }
 
         policy.WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-            .WithHeaders("Authorization", "Content-Type", "If-Match")
+            .WithHeaders(
+                "Authorization",
+                "Content-Type",
+                "If-Match",
+                RequireCsrfProtectionAttribute.HeaderName)
             .WithExposedHeaders("ETag", "Retry-After")
             .SetPreflightMaxAge(TimeSpan.FromHours(1));
         if (httpSecuritySettings.AllowCredentials)
@@ -326,6 +330,13 @@ builder.Services.AddOptions<AuthSessionOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<AuthSessionOptions>, AuthSessionOptionsValidator>();
 builder.Services.AddScoped<IAuthSessionService, AuthSessionService>();
+builder.Services.AddOptions<RefreshTokenCookieOptions>()
+    .Bind(builder.Configuration.GetSection(RefreshTokenCookieOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<
+    IValidateOptions<RefreshTokenCookieOptions>,
+    RefreshTokenCookieOptionsValidator>();
+builder.Services.AddSingleton<RefreshTokenCookie>();
 builder.Services.AddSingleton<IAnalysisEngine, AnalysisEngineV1>();
 builder.Services.AddSingleton<IAnalyzerRegistry, AnalyzerRegistry>();
 builder.Services.AddScoped<AnalysisInputLoader>();
@@ -545,6 +556,7 @@ builder.Services
                             session.UserId == userId &&
                             session.RevokedAt == null &&
                             session.AbsoluteExpiresAt > now &&
+                            session.IdleExpiresAt > now &&
                             session.User.IsActive &&
                             session.User.SecurityStamp == securityStamp,
                         context.HttpContext.RequestAborted);
@@ -627,6 +639,28 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = authenticationRateLimitSettings.RegisterPermitLimit,
                 Window = authenticationRateLimitSettings.RegisterWindow,
+                QueueLimit = authenticationRateLimitSettings.QueueLimit,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy(
+        AuthenticationRateLimitPolicyNames.Refresh,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authenticationRateLimitSettings.RefreshPermitLimit,
+                Window = authenticationRateLimitSettings.RefreshWindow,
+                QueueLimit = authenticationRateLimitSettings.QueueLimit,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy(
+        AuthenticationRateLimitPolicyNames.Logout,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authenticationRateLimitSettings.LogoutPermitLimit,
+                Window = authenticationRateLimitSettings.LogoutWindow,
                 QueueLimit = authenticationRateLimitSettings.QueueLimit,
                 AutoReplenishment = true
             }));

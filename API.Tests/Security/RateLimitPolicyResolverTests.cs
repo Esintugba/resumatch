@@ -13,6 +13,8 @@ public sealed class RateLimitPolicyResolverTests
     [
         AuthenticationRateLimitPolicyNames.Login,
         AuthenticationRateLimitPolicyNames.Register,
+        AuthenticationRateLimitPolicyNames.Refresh,
+        AuthenticationRateLimitPolicyNames.Logout,
         JobParsingRateLimitPolicyNames.RequestParse,
         Unknown
     ];
@@ -20,6 +22,9 @@ public sealed class RateLimitPolicyResolverTests
     [Theory]
     [InlineData("/api/auth/login", AuthenticationRateLimitPolicyNames.Login)]
     [InlineData("/api/auth/register", AuthenticationRateLimitPolicyNames.Register)]
+    [InlineData("/api/auth/refresh", AuthenticationRateLimitPolicyNames.Refresh)]
+    [InlineData("/api/auth/logout", AuthenticationRateLimitPolicyNames.Logout)]
+    [InlineData("/API/Auth/Logout/", AuthenticationRateLimitPolicyNames.Logout)]
     [InlineData(
         "/api/job-postings/0b6f3c61-2c1f-4d43-9a43-6c2f0f6f3a10/parse",
         JobParsingRateLimitPolicyNames.RequestParse)]
@@ -37,6 +42,9 @@ public sealed class RateLimitPolicyResolverTests
     [InlineData("/api/auth/me")]
     [InlineData("/api/auth/loginx")]
     [InlineData("/api/auth/registered")]
+    [InlineData("/api/auth/logout-all")]
+    [InlineData("/api/auth/refreshed")]
+    [InlineData("/api/auth/sessions")]
     [InlineData("/api/resumes")]
     [InlineData("/api/job-postings")]
     [InlineData("/api/job-postings/0b6f3c61-2c1f-4d43-9a43-6c2f0f6f3a10")]

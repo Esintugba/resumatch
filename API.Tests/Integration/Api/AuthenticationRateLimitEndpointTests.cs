@@ -45,7 +45,11 @@ public sealed class AuthenticationRateLimitEndpointTests : ApiIntegrationTestBas
                 ["AuthenticationRateLimits:RegisterPermitLimit"] =
                     RegisterPermitLimit.ToString(
                         System.Globalization.CultureInfo.InvariantCulture),
-                ["AuthenticationRateLimits:RegisterWindow"] = "01:00:00"
+                ["AuthenticationRateLimits:RegisterWindow"] = "01:00:00",
+                ["AuthenticationRateLimits:RefreshPermitLimit"] = "2",
+                ["AuthenticationRateLimits:RefreshWindow"] = "01:00:00",
+                ["AuthenticationRateLimits:LogoutPermitLimit"] = "2",
+                ["AuthenticationRateLimits:LogoutWindow"] = "01:00:00"
             },
             configureTestServices: services =>
                 services.AddSingleton<IStartupFilter, TestClientAddressStartupFilter>());
@@ -233,6 +237,53 @@ public sealed class AuthenticationRateLimitEndpointTests : ApiIntegrationTestBas
                 (1L, (string?)AuthenticationRateLimitPolicyNames.Register)
             ],
             policies.ToArray());
+    }
+
+    [Theory]
+    [InlineData("/api/auth/refresh", AuthenticationRateLimitPolicyNames.Refresh)]
+    [InlineData("/api/auth/logout", AuthenticationRateLimitPolicyNames.Logout)]
+    public async Task RefreshAndLogout_HaveTheirOwnQuotaAndBoundedPolicyTag(
+        string path,
+        string expectedPolicy)
+    {
+        using var cancellation = CreateCancellation();
+        var policies = new ConcurrentQueue<string>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == ApiSecurityMetrics.MeterName &&
+                instrument.Name == RateLimitedInstrument)
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            foreach (var tag in tags)
+            {
+                if (tag.Key == "policy")
+                {
+                    policies.Enqueue(tag.Value as string ?? "(none)");
+                }
+            }
+        });
+        listener.Start();
+        using var client = CreateClient("198.51.100.80");
+
+        // Requests rejected by the CSRF check still use the quota, so the
+        // check cannot be probed without limit.
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var rejected = await client.PostAsync(path, content: null, cancellation.Token);
+            Assert.Equal(HttpStatusCode.Forbidden, rejected.StatusCode);
+        }
+
+        using var limited = await client.PostAsync(path, content: null, cancellation.Token);
+        using var login = await LoginAsync(client, cancellation.Token);
+
+        await AssertRateLimitedAsync(limited, TimeSpan.FromHours(1), cancellation.Token);
+        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+        Assert.Equal([expectedPolicy], policies.ToArray());
     }
 
     private HttpClient CreateClient(string clientAddress)

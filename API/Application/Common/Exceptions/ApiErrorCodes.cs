@@ -19,6 +19,7 @@ public static class ApiErrorCodes
     public const string RateLimited = "rate_limited";
     public const string InternalError = "internal_error";
     public const string FeatureDisabled = "feature_disabled";
+    public const string CsrfRejected = "csrf_rejected";
 
     public const string RegistrationRejected = "registration_rejected";
     public const string SectionLimitReached = "section_limit_reached";
@@ -33,4 +34,5 @@ public static class ApiErrorCodes
     public const string SkillProvenanceLocked = "skill_provenance_locked";
     public const string JobPostingSkillLimitReached = "job_posting_skill_limit_reached";
     public const string ParseCooldown = "parse_cooldown";
+    public const string RefreshTokenSuperseded = "refresh_token_superseded";
 }
