@@ -209,6 +209,7 @@ public sealed class UserSecretsIsolationTests(PostgreSqlFixture fixture)
         public static FakeUserSecretsLocation Create(string? secretsJson)
         {
             var root = Path.Combine(Path.GetTempPath(), "resumatch-user-secrets-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
             var id = typeof(Program).Assembly.GetCustomAttribute<UserSecretsIdAttribute>()!.UserSecretsId;
             foreach (var directory in new[]
             {
@@ -216,13 +217,17 @@ public sealed class UserSecretsIsolationTests(PostgreSqlFixture fixture)
                 Path.Combine(root, ".microsoft", "usersecrets", id)
             })
             {
-                Directory.CreateDirectory(directory);
-                if (secretsJson is not null)
+                if (secretsJson is null)
                 {
-                    // Fails the test early if the fake file is not valid JSON.
-                    using var _ = JsonDocument.Parse(secretsJson);
-                    File.WriteAllText(Path.Combine(directory, "secrets.json"), secretsJson);
+                    // No folder at all, as on a machine that never used
+                    // user secrets (CI): the source then has no file provider.
+                    continue;
                 }
+
+                Directory.CreateDirectory(directory);
+                // Fails the test early if the fake file is not valid JSON.
+                using var _ = JsonDocument.Parse(secretsJson);
+                File.WriteAllText(Path.Combine(directory, "secrets.json"), secretsJson);
             }
 
             return new FakeUserSecretsLocation(root);

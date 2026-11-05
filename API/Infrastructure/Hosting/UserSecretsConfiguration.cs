@@ -1,7 +1,4 @@
-using System.Reflection;
 using Microsoft.Extensions.Configuration.Json;
-using Microsoft.Extensions.Configuration.UserSecrets;
-using Microsoft.Extensions.FileProviders;
 
 namespace Api.Infrastructure.Hosting;
 
@@ -33,24 +30,13 @@ public static class UserSecretsConfiguration
         }
     }
 
-    public static bool IsUserSecretsSource(IConfigurationSource source)
-    {
-        if (source is not JsonConfigurationSource { Path: "secrets.json", FileProvider: PhysicalFileProvider provider })
-        {
-            return false;
-        }
-
-        var id = typeof(UserSecretsConfiguration).Assembly
-            .GetCustomAttribute<UserSecretsIdAttribute>()?.UserSecretsId;
-        if (id is null)
-        {
-            return false;
-        }
-
-        var expected = Path.GetDirectoryName(PathHelper.GetSecretsPathFromSecretsId(id));
-        return string.Equals(
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(provider.Root)),
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(expected!)),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-    }
+    /// <summary>
+    /// Matches the source by its file name. When the user secrets folder does
+    /// not exist, AddUserSecrets adds the source without a file provider and it
+    /// falls back to the content root, so the folder cannot be compared. This
+    /// application has no other secrets.json source.
+    /// </summary>
+    public static bool IsUserSecretsSource(IConfigurationSource source) =>
+        source is JsonConfigurationSource { Path: var path } &&
+        string.Equals(Path.GetFileName(path), "secrets.json", StringComparison.OrdinalIgnoreCase);
 }
