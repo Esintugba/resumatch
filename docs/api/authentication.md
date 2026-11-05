@@ -85,7 +85,7 @@ Refresh and logout are the only endpoints that act on the cookie. Each request t
 
 1. **`SameSite=Strict`:** the browser does not attach the cookie to cross-site requests.
 2. **`X-ResuMatch-CSRF: 1`:** a custom header, which a page on another origin cannot send without a CORS preflight that this API refuses.
-3. **Origin:** `Origin` must exactly match an entry in `HttpSecurity:AllowedOrigins`. Without `Origin`, the origin of `Referer` must match. With neither, the request is rejected.
+3. **Origin:** `Origin` must exactly match an entry in `HttpSecurity:AllowedOrigins`. Without `Origin`, the origin of `Referer` must match; in production only an HTTPS `Referer` counts. With neither, the request is rejected.
 
 A failed check returns 403 `csrf_rejected` before the request body is read, and leaves the cookie and session untouched. Rejected requests still count towards the rate limit.
 
