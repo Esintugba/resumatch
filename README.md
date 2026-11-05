@@ -64,6 +64,43 @@ All `/api/*` endpoints except `POST /api/auth/register` and `POST /api/auth/logi
 
 Enums are sent and received as names such as `"Applied"`; numbers are rejected. Error responses are `application/problem+json` with a stable `code`, listed in [API error codes](docs/api/error-codes.md).
 
+## Web app (`web/`)
+
+React, TypeScript and Vite. There are no screens yet: one placeholder page and a draft of the "server is waking up" message. The web app is not deployed yet.
+
+**Requirements:** Node.js at the exact version in [`web/.nvmrc`](web/.nvmrc) (`nvm use` or `fnm use` in `web/`). `web/.npmrc` sets `engine-strict`, so npm refuses other Node majors and older 24.x releases.
+
+```powershell
+cd web
+npm ci                              # always from package-lock.json
+npm run dev                         # http://localhost:5173
+```
+
+Vite proxies `/api` and `/health` to the API's `http` profile on `http://localhost:5252`, so start the API first (`dotnet run --project API --launch-profile http`). The browser then talks only to `localhost:5173`, which the API's Development settings allow with credentials; see [Local development](docs/api/authentication.md#local-development). Without the API, the page shows the waking message and, after 90 seconds, a retry button.
+
+| Command | What it does |
+|---|---|
+| `npm run lint` | ESLint with type-aware rules; warnings fail |
+| `npm run typecheck` | `tsc` in strict mode |
+| `npm test` | Vitest and React Testing Library |
+| `npm run build` | Production build into `web/dist` |
+| `npm run e2e` | Playwright in Chromium and WebKit against the production build. Run `npx playwright install chromium webkit` once. API calls are stubbed. |
+
+### API contract
+
+The web app's API types come from the API's OpenAPI document. Both are committed:
+
+- `web/openapi/v1.json`: the document.
+- `web/src/api/schema.d.ts`: types generated from it by `openapi-typescript`.
+
+After changing a controller or DTO, regenerate both and commit them:
+
+```bash
+bash scripts/generate-api-contract.sh   # Git Bash on Windows; needs `npm ci` in web/ first
+```
+
+The script builds the API in Release and runs it briefly on `127.0.0.1:5290` in a `ContractGeneration` environment with throwaway settings: user secrets are not loaded and no database is contacted. CI runs the same script and fails if the result differs from the committed files.
+
 ## Running tests
 
 ```powershell
@@ -89,10 +126,14 @@ Integration tests live in the `API.Tests.Integration.*` namespace. They start a 
   - Fails if the EF Core model has changes without a migration (`dotnet ef migrations has-pending-model-changes`).
   - Fails if any direct or transitive package has a known vulnerability.
 - **integration-tests**: runs after the first job and executes the integration tests against PostgreSQL in Docker (Testcontainers).
+- **web-checks**: `npm ci`, lint, typecheck, unit tests and build of `web/`, then `npm audit --omit=dev` for runtime packages.
+- **api-contract**: builds the API, regenerates the OpenAPI document and the TypeScript types, and fails if they differ from the committed files.
+
+The two web jobs run in parallel with the backend jobs and do not gate `deploy`, which still deploys only the API.
 
 - **deploy**: on pushes to `main` only, after both jobs pass. Applies migrations to Neon, deploys to Render, and runs a read-only smoke test. See [Render + Neon](docs/operations/deployment.md#render--neon).
 
-Both test jobs upload their `.trx` results as artifacts, even when tests fail. The test jobs need no secrets: tests use built-in test keys and fake providers. Dependabot proposes weekly NuGet and GitHub Actions updates, grouping the Microsoft and EF Core packages into one PR.
+Both test jobs upload their `.trx` results as artifacts, even when tests fail. The test jobs need no secrets: tests use built-in test keys and fake providers. Dependabot proposes weekly NuGet, npm (`web/`) and GitHub Actions updates, grouping the Microsoft and EF Core packages into one PR and the npm packages by purpose.
 
 ## Project structure
 
@@ -108,6 +149,12 @@ API/
 API.Tests/
   Analysis/, JobParsing/, Observability/, Security/   Unit tests
   Integration/                                        PostgreSQL-backed and HTTP integration tests
+web/
+  openapi/          Committed OpenAPI document (generated)
+  src/api/          Generated types, API configuration, cold start check
+  src/components/   Shared components
+  e2e/              Playwright tests
+scripts/            Smoke test, API contract generation
 docs/operations/    Production operations documentation
 ```
 

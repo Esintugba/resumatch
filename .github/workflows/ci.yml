@@ -118,6 +118,88 @@ jobs:
           path: TestResults/*.trx
           if-no-files-found: warn
 
+  web-checks:
+    name: web-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Check for vulnerable runtime packages
+        run: npm audit --omit=dev
+
+  api-contract:
+    name: api-contract
+    # Regenerates the OpenAPI document from a short local run of the API (no
+    # database, no secrets, loopback only) and the TypeScript types from it.
+    # Fails when the committed copies differ.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '.config/dotnet-tools.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build API
+        run: |
+          dotnet restore API/API.csproj
+          dotnet build API/API.csproj --configuration Release --no-restore
+
+      - name: Install web tools
+        working-directory: web
+        run: npm ci
+
+      - name: Generate the contract
+        run: bash scripts/generate-api-contract.sh --no-build
+
+      - name: Fail if the committed contract is out of date
+        run: |
+          if [ -n "$(git status --porcelain -- web/openapi web/src/api/schema.d.ts)" ]; then
+            git --no-pager diff --stat -- web/openapi web/src/api/schema.d.ts
+            git status --short -- web/openapi web/src/api/schema.d.ts
+            echo "::error::The committed API contract is out of date. Run scripts/generate-api-contract.sh and commit web/openapi/v1.json and web/src/api/schema.d.ts."
+            exit 1
+          fi
+          echo "The committed contract matches the API."
+
   deploy:
     name: deploy
     needs: [build-and-unit-tests, integration-tests]
