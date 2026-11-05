@@ -2,21 +2,24 @@
 
 Yeni oturum buradan başlar. Ayrıntılı plan [frontend-roadmap.md](frontend-roadmap.md) içinde.
 
+> **Alan adı ve yayın ertelendi, PR 19'da karar verilecek.** PR 19'a kadar her şey yerelde geliştirilip test edilir. Ücretli plan önerileri (Render Starter, Neon Launch) de PR 19'a kalır. Render'daki ücretsiz API deploy hattı test için çalışmaya devam eder: merge politikası ve canlı doğrulama aynen uygulanır.
+
 ## Neredeyiz
 
-- **Son canlı commit:** `37629b7` (PR #24, refresh cookie ve CSRF). `/health/ready` Healthy, smoke testi geçiyor.
+- **Son canlı commit (bu not yazılırken):** `37629b7` (PR #24, refresh cookie ve CSRF). `/health/ready` Healthy, smoke testi geçiyor.
 - **Canlı adresler:** API `https://resumatch-api-da3z.onrender.com` (Render Free), veritabanı Neon (pooler, PgBouncer transaction modu).
 - **Aşama A tamamlandı:** PR 1–5, 3b ve 3c merge edildi. Son migration `20261103173237_AddAuthSessions`.
-- **Bu nottan sonra açık PR:** Referer şema düzeltmesi (`fix/csrf-referer-scheme`). Bu not o PR'ın içinde, merge onayı bekliyor.
+- **PR #25:** Referer şema düzeltmesi ve bu not. Merge edildiğinde son canlı commit onun merge commit'i olur; `/health/version` ile doğrula. Açık PR kalmaz.
 - **Sıradaki PR:** PR 6, web iskeleti ve sözleşme CI'ı (Aşama B). `web/`, lint, test, tip üretimi, API istemcisi, `web-checks` ve `api-contract` job'ları, `npm` için Dependabot. Migration yok.
 - **Kimlik doğrulama:** Frontend akışı [authentication.md](../api/authentication.md) içinde: access token bellekte, 401'de tek refresh, Web Locks, `BroadcastChannel`, yerelde Vite proxy.
 
 ## Bekleyen kararlar
 
-- **Alan adı:** Ad seçilmedi. `alanadi.com` yer tutucudur. Frontend `app.alanadi.com` mı yoksa kök `alanadi.com` mı olacak, belli değil; ikisi de cookie tasarımıyla çalışır. Alan adı gelince değişecek ayarlar authentication.md'deki "When the domain is ready" bölümünde, kod değişikliği gerekmez.
-- **Canlıda kimlik bilgisi:** `HttpSecurity__AllowCredentials` alan adı gelene kadar kapalı. Bu sürede refresh ve logout canlıda 403 döner, bu beklenen durumdur.
+- **Alan adı ve yayın: ertelendi, PR 19'da karar verilecek.** Ad seçilmedi, `alanadi.com` yer tutucudur. Frontend `app.alanadi.com` mı yoksa kök `alanadi.com` mı olacak, o zaman belirlenir; ikisi de cookie tasarımıyla çalışır. Alan adı gelince değişecek ayarlar authentication.md'deki "When the domain is ready" bölümünde, kod değişikliği gerekmez.
+- **Ücretli planlar: ertelendi, PR 19'da karar verilecek.** Öneriler (Render Starter, Neon Launch) yol haritasının 8. bölümünde duruyor. O zamana kadar hiçbir şey satın alınmaz.
+- **E-posta:** Gerçek gönderim (`mail.alanadi.com`) alan adına bağlı, PR 19'a kalır. PR 11 yerelde sahte göndericiyle geliştirilip test edilir.
+- **Canlıda kimlik bilgisi:** `HttpSecurity__AllowCredentials` alan adı gelene kadar kapalı. Bu sürede refresh ve logout canlıda 403 döner, bu beklenen durumdur. Cookie akışı yerelde Vite proxy ile test edilir.
 - **Hukuk:** Veri sorumlusu yapısı ve metinler avukat görüşüne bağlı (beta çıkış şartı).
-- **Render Starter:** PR 19 ile, davetten en az bir hafta önce açılacak.
 - **Doğrulanmamış:** Safari'de `http://localhost` üzerinde `Secure` cookie davranışı.
 
 ## Merge politikası
