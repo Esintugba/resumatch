@@ -1,6 +1,16 @@
 # API error codes
 
-Every error body is `application/problem+json` and carries a stable `code` extension. Use `code` for program logic and translations. `title` and `detail` are English text for developers and may change.
+Every error body is `application/problem+json` and carries a stable `code` extension, with one exception listed under [Responses without a code](#responses-without-a-code). Use `code` for program logic and translations. `title` and `detail` are English text for developers and may change.
+
+The OpenAPI document describes these bodies with three schemas, and the web client's types are generated from it:
+
+| Schema | Used for | `code` |
+|---|---|---|
+| `ProblemDetails` | Every error status except 400 and 415 | Required, one of the codes below |
+| `ValidationProblemDetails` | 400 | Required; `errors` holds field messages when available |
+| `UnsupportedMediaTypeProblemDetails` | 415 | Optional |
+
+Besides the statuses an endpoint declares, every endpoint lists 500, every endpoint that needs a user lists 401, every endpoint with parameters lists 400, every endpoint with a body lists 413 and 415, and every rate-limited endpoint lists 429.
 
 ```json
 {
@@ -88,6 +98,10 @@ Enums are sent and received as names, such as `"Applied"`. Numbers are rejected 
 ```
 
 When `jobParsing` is `false`, `POST /api/job-postings/{id}/parse` returns `feature_disabled`, whatever the job posting or `If-Match` value. No draft is created and no provider is called.
+
+## Responses without a code
+
+A JSON endpoint that receives no body or a media type other than JSON answers 415 from ASP.NET Core itself. The body is `application/problem+json` with `status` and `traceId` but no `code`. A form body gets 415 from the API with the code `unsupported_media_type`.
 
 ## Responses without a body
 

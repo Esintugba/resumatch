@@ -773,7 +773,11 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
-    options.AddSchemaTransformer<ApiContractSchemaTransformer>());
+{
+    options.AddSchemaTransformer<ApiContractSchemaTransformer>();
+    options.AddOperationTransformer<ErrorResponseOperationTransformer>();
+    options.AddDocumentTransformer<ErrorResponseDocumentTransformer>();
+});
 
 var app = builder.Build();
 

@@ -20,6 +20,7 @@ public sealed class ResumesController : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(typeof(ResumeResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ResumeResponse>> Create(
         [FromBody] CreateResumeRequest request,
         CancellationToken cancellationToken)
