@@ -72,6 +72,10 @@ SELECT
 
 Migration'lar merge'den önce geçici bir PostgreSQL'de `Up → Down → Up` olarak denenir. Betik `dotnet-ef` 10.0.14 ile, güvenli `Staging` ortam değişkenleriyle üretilir.
 
+## Bilinen riskler
+
+- **`minimatch` (GHSA-g3hv-75wg-m249, orta):** `web/` geliştirme bağımlılıklarında ESLint ve typescript-eslint üzerinden geliyor; tam `npm audit` 10 uyarı gösterir. Açık, saldırganın kontrol ettiği glob desenleri gerektirir; bizde desenler yalnızca ESLint yapılandırmasından gelir ve paket üretim build'ine girmez. Düzeltme yalnızca `minimatch` 11'de, ESLint 10 ise `^10.2.4` istiyor. Karar: override yok, CI'da `npm audit --omit=dev` yeterli. **ESLint `minimatch` 11'i desteklediğinde güncelle** ve tam `npm audit`'in temiz olduğunu doğrula.
+
 ## Ortam notları
 
 - **Testler:** Testcontainers ile PostgreSQL, Docker Desktop açık olmalı. `dotnet test` tam paketi yaklaşık 2,5 dakika sürer (son sayım 1421 test).
