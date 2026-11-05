@@ -36,7 +36,11 @@ Tam metin: [change-and-merge-policy.md](../operations/change-and-merge-policy.md
 
 Politika dosyasında yazmayan ama PR 4 ve 5'te istenen bir adım daha var: PR merge onayına sunulmadan önce `/security-review` çalıştırılır, bulgular düzeltilir ya da gerekçesiyle raporlanır.
 
-**Merge betiği:** Önceki oturumdaki betik geçici klasördeydi ve taşınmayacak. Yapması gerekenler: kimlik ve CI kontrolü (okuma çağrıları tekrar denenebilir), tek `gh pr merge --merge` çağrısı (asla tekrar denenmez), yeni `main` çalışmasını bekleme, deploy adımlarının sonucu, `/health/version` ile commit karşılaştırması, `/health/ready`. Yerelde `jq` yok, bu yüzden `gh --jq` kullanılır.
+**Merge betiği:** [`scripts/merge-pr.sh`](../../scripts/merge-pr.sh). Örnek: `bash scripts/merge-pr.sh 26 "<onaylanan başlık>" <branch>`. Önce `--dry-run` ile yalnızca kontroller çalıştırılabilir; merge edilmiş bir PR için canlı doğrulama `--verify-only` ile tekrarlanır. Migration içeren PR'da `--migration-approved` olmadan durur.
+
+- **Merge öncesi:** numara, başlık, branch, `main` hedefi, `OPEN` ve taslak değil, `mergeStateStatus` `CLEAN`, branch `main`'in gerisinde değil, head commit'te tüm check'ler yeşil ve `main`'deki `ci.yml` job'larının (deploy hariç) hepsi başarılı. Okuma çağrıları tekrar denenir.
+- **Merge:** tek `gh pr merge --merge --match-head-commit <sha>` çağrısı, asla tekrar denenmez.
+- **Merge sonrası:** merge commit'inin `main` çalışmasını bekler, job ve deploy adımlarını yazar, `Apply migrations` ve `Smoke test` adımlarının başarısını, `/health/version` commit'ini ve `/health/ready` 200'ü doğrular. Yerelde `jq` olmadığı için smoke testi CI adımından okunur; `jq` varsa yerelde de çalışır. Bir adım tutmazsa durur.
 
 ## Dokunulmaması gerekenler
 
