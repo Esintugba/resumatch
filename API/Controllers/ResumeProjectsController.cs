@@ -34,6 +34,7 @@ public sealed class ResumeProjectsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ProjectResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProjectResponse>> Create(
         Guid resumeId,
         [FromBody] CreateProjectRequest request,
