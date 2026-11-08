@@ -1,0 +1,15 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.sections {
+  margin-top: var(--space-4);
+}

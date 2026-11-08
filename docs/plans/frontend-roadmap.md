@@ -370,8 +370,16 @@ Hedef: Yerelde giriş → özgeçmiş → ATS analizi uçtan uca çalışır.
 |---|---|---|---|---|---|
 | 6 | Web iskeleti ve sözleşme CI'ı | Hayır | Evet | Ürün kodu yok, araç zinciri tek başına doğrulanır | `web/`, lint, test, tip üretimi, API istemcisi, `web-checks`, `api-contract`, Dependabot |
 | 7 | Uygulama kabuğu ve giriş | Hayır | Evet | Tüm ekranların ortak temeli | Router, i18n, tasarım token'ları, hata ve 429 işleme, cold start, giriş, kayıt, sessiz yenileme |
-| 8 | Özgeçmiş çekirdeği | Hayır | Evet | Dikey akışın veri kısmı | Liste, ana bilgiler, iletişim, deneyim, eğitim, beceri, 412 akışı |
+| 8a | Özgeçmiş listesi ve düzenleyici temeli | Hayır | Evet | Dikey akışın veri kısmı; 8b'nin altyapısı | Liste (oluştur, arşivle, boş görünüm, dar ekranda kart), düzenleyici (akordeon, tek form açık), ana bilgiler, iletişim, react-query ve react-hook-form, ETag ve If-Match, 412 akışı, kaydedilmemiş değişiklik uyarısı, CSS Modules |
+| 8b | Deneyim, eğitim, beceri | Hayır | Evet | 8a'nın altyapısıyla bölümleri tamamlar | Notlar aşağıda |
 | 9 | ATS analizi ve ilk E2E | Hayır | Evet | Dikey akışı kapatır, kanıtı Playwright üretir | Analiz sonucu, `web-e2e`, axe, giriş → özgeçmiş → analiz testi |
+
+**PR 8b notları:**
+
+- Deneyim ve eğitimde silme onayı (8a'daki onay penceresi).
+- "Halen devam ediyor" seçeneği; başlangıç ve bitiş için ay/yıl girişi.
+- Beceri eklemede katalog araması; 1 karakterlik aramanın davranışı (API'nin kuralı ve arayüzde ne gösterileceği) netleştirilir.
+- Beceri bölümünde "katalogda yok" notu (`UnlistedSkillsNote`). Ana bilgilerin PUT isteği bu alanı da taşır; iki form aynı ETag'i paylaştığı için 412 akışı birlikte düşünülür.
 
 ### Aşama C: Beta kapısı backend işleri
 

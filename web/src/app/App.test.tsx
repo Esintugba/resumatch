@@ -17,6 +17,8 @@ function json(status: number, body: unknown, type = 'application/json', headers:
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': type, ...headers } });
 }
 
+const resumesPath = '/api/resumes?page=1&pageSize=20';
+const emptyList = () => json(200, { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 });
 const signedIn = () => json(200, { accessToken, expiresAt: '2030-01-01T00:00:00Z', user });
 const noSession = () => json(401, { status: 401, code: 'unauthorized' }, 'application/problem+json');
 
@@ -64,17 +66,18 @@ describe('routing', () => {
     expect(window.location.pathname).toBe('/login');
   });
 
-  it('restores the session silently on page load and shows the home page', async () => {
+  it('restores the session silently on page load and shows the resume list', async () => {
     serve({
       '/health/live': () => json(200, {}),
       '/api/auth/refresh': signedIn,
       '/api/auth/me': () => json(200, user),
+      [resumesPath]: emptyList,
     });
 
     renderApp('/');
 
-    expect(await screen.findByRole('heading', { name: messages.home.greeting('Deneme') })).toBeTruthy();
-    expect(window.location.pathname).toBe('/');
+    expect(await screen.findByRole('heading', { level: 1, name: messages.resumes.title })).toBeTruthy();
+    expect(window.location.pathname).toBe('/app/resumes');
   });
 
   it('sends a signed-in user away from the sign-in page', async () => {
@@ -82,8 +85,8 @@ describe('routing', () => {
 
     renderApp('/login');
 
-    expect(await screen.findByRole('heading', { name: messages.home.greeting('Deneme') })).toBeTruthy();
-    expect(window.location.pathname).toBe('/');
+    expect(await screen.findByRole('heading', { level: 1, name: messages.resumes.title })).toBeTruthy();
+    expect(window.location.pathname).toBe('/app/resumes');
   });
 
   it('signs out and returns to the sign-in page', async () => {
@@ -91,11 +94,12 @@ describe('routing', () => {
       '/health/live': () => json(200, {}),
       '/api/auth/refresh': signedIn,
       '/api/auth/me': () => json(200, user),
+      [resumesPath]: emptyList,
       '/api/auth/logout': () => new Response(null, { status: 204 }),
     });
     renderApp('/');
 
-    fireEvent.click(await screen.findByRole('button', { name: messages.home.signOut }));
+    fireEvent.click(await screen.findByRole('button', { name: messages.nav.signOut }));
 
     expect(await screen.findByRole('heading', { level: 1, name: messages.login.title })).toBeTruthy();
     expect(fetchFn.mock.calls.some(([input]) => pathOf(input) === '/api/auth/logout')).toBe(true);
@@ -110,8 +114,13 @@ describe('sign-in form', () => {
   it('labels its fields and checks them before sending', async () => {
     const fetchFn = vi.mocked(fetch);
     renderApp('/login');
+    // The page moves focus to its heading on mount; wait for that before interacting.
+    const heading = await screen.findByRole('heading', { level: 1, name: messages.login.title });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(heading);
+    });
 
-    fireEvent.click(await screen.findByRole('button', { name: messages.login.submit }));
+    fireEvent.click(screen.getByRole('button', { name: messages.login.submit }));
 
     const email = screen.getByLabelText(messages.login.email);
     expect(email.getAttribute('type')).toBe('email');
@@ -266,15 +275,16 @@ describe('token storage', () => {
       '/api/auth/refresh': noSession,
       '/api/auth/login': signedIn,
       '/api/auth/me': () => json(200, user),
+      [resumesPath]: emptyList,
     });
 
     try {
       renderApp('/login');
       await fillAndSubmit('deneme@example.test', 'parola');
-      expect(await screen.findByRole('heading', { name: messages.home.greeting('Deneme') })).toBeTruthy();
+      expect(await screen.findByRole('heading', { level: 1, name: messages.resumes.title })).toBeTruthy();
       expect(setItem).not.toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole('button', { name: messages.home.signOut }));
+      fireEvent.click(screen.getByRole('button', { name: messages.nav.signOut }));
       expect(await screen.findByText(messages.login.signOutIncomplete)).toBeTruthy();
 
       // The sign-out flag is the only thing written, and it holds no token.
@@ -319,13 +329,14 @@ describe('unfinished sign-out', () => {
       '/health/live': () => json(200, {}),
       '/api/auth/login': signedIn,
       '/api/auth/me': () => json(200, user),
+      [resumesPath]: emptyList,
     });
 
     renderApp('/login');
     expect(await screen.findByText(messages.login.signOutIncomplete)).toBeTruthy();
     await fillAndSubmit('deneme@example.test', 'parola');
 
-    expect(await screen.findByRole('heading', { name: messages.home.greeting('Deneme') })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: messages.resumes.title })).toBeTruthy();
     expect(window.localStorage.getItem(signOutMarkerKey)).toBeNull();
   });
 });

@@ -72,6 +72,7 @@ export const refreshLockName = 'resumatch-refresh';
 export const authChannelName = 'resumatch-auth';
 export const csrfHeader = { 'X-ResuMatch-CSRF': '1' } as const;
 const supersededRetryDelayMs = 200;
+const readOnlyMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
 const defaultRetryAfterSeconds = 60;
 
 type ChannelMessage = { type: 'signed-in' } | { type: 'signed-out' };
@@ -196,13 +197,23 @@ export class AuthSession {
     };
 
     const tokenUsed = this.accessToken;
+    const userUsed = this.currentUserId();
     const response = await send(tokenUsed);
     if (response.status !== 401) return response;
 
     // Another request may already have refreshed while this one was in flight.
     const refreshed = this.accessToken !== tokenUsed && this.accessToken !== null ? true : await this.refresh();
     if (!refreshed) return response;
+    // The cookie can belong to someone else by now (another tab signed in as
+    // a different user). A change meant for one user is never replayed as
+    // another; it fails with the original 401 instead.
+    const method = (init.method ?? 'GET').toUpperCase();
+    if (!readOnlyMethods.has(method) && this.currentUserId() !== userUsed) return response;
     return send(this.accessToken);
+  }
+
+  private currentUserId(): string | null {
+    return this.state.status === 'signed-in' ? (this.state.user.id ?? null) : null;
   }
 
   /** One refresh at a time in this tab; concurrent callers share it. None while a logout is unfinished. */

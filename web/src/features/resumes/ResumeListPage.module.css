@@ -1,0 +1,112 @@
+.create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-4) 0 var(--space-6);
+}
+
+.createField {
+  flex: 1 1 16rem;
+}
+
+.createField > div {
+  margin-bottom: 0;
+}
+
+.empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Wide screens: each card reads like a table row. */
+.item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.itemTitle {
+  margin: 0;
+  font-size: 1.0625rem;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+/* Two fixed columns: Edit always sits in the first, so it lines up across cards. */
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, 7.5rem);
+  gap: var(--space-2);
+}
+
+.archive {
+  margin-top: var(--space-6);
+}
+
+.archiveHeading {
+  margin: 0 0 var(--space-3);
+  font-size: 1.125rem;
+  color: var(--color-muted);
+}
+
+.archived {
+  background: var(--color-bg);
+  color: var(--color-muted);
+}
+
+.archived a {
+  color: inherit;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* Narrow screens: stacked cards with full-width actions. */
+@media (max-width: 40rem) {
+  .item {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
