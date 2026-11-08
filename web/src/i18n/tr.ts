@@ -34,6 +34,8 @@ export const tr = {
     rateLimited: (seconds: number) =>
       `Çok fazla deneme yapıldı. ${String(seconds)} saniye sonra tekrar deneyebilirsiniz.`,
     rateLimitOver: 'Tekrar deneyebilirsiniz.',
+    signOutIncomplete:
+      'Çıkış tamamlanamadı, bağlantınızı kontrol edin. Bu cihazda oturum kapatıldı; bağlantı gelince çıkış yeniden denenecek.',
     waitCountdown: (seconds: number) => `Bekleyin (${String(seconds)} sn)`,
   },
 

@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AuthSession, authChannelName, parseRetryAfter, refreshLockName, type SessionDependencies } from './session';
+import {
+  AuthSession,
+  authChannelName,
+  parseRetryAfter,
+  refreshLockName,
+  type SessionDependencies,
+  type SignOutMarker,
+} from './session';
 
 const user = { id: 'u1', firstName: 'Deneme', lastName: 'Kullanıcı', email: 'deneme@example.test' };
 const tokenA = 'access-token-a';
@@ -65,6 +72,21 @@ function sequence(...responses: (() => Response)[]) {
   };
 }
 
+/** In memory, so tests do not share a flag through jsdom's localStorage. */
+function memoryMarker(initial = false): SignOutMarker & { value: boolean } {
+  const marker = {
+    value: initial,
+    isSet: () => marker.value,
+    set: () => {
+      marker.value = true;
+    },
+    clear: () => {
+      marker.value = false;
+    },
+  };
+  return marker;
+}
+
 function createSession(fetchFn: typeof fetch, extra: Partial<SessionDependencies> = {}) {
   const channels: FakeChannel[] = [];
   const session = new AuthSession({
@@ -76,6 +98,8 @@ function createSession(fetchFn: typeof fetch, extra: Partial<SessionDependencies
       return channel;
     },
     sleep: () => Promise.resolve(),
+    signOutMarker: memoryMarker(),
+    onOnline: null,
     ...extra,
   });
   const channel = channels[0];
@@ -106,7 +130,7 @@ describe('AuthSession', () => {
 
     expect(await session.restore()).toBe(false);
 
-    expect(session.getState()).toEqual({ status: 'signed-out' });
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: false });
     expect(api.callsTo('/api/auth/refresh')).toHaveLength(1);
   });
 
@@ -141,7 +165,7 @@ describe('AuthSession', () => {
     expect(await session.refresh()).toBe(false);
 
     expect(api.callsTo('/api/auth/refresh')).toHaveLength(2);
-    expect(session.getState()).toEqual({ status: 'signed-out' });
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: false });
   });
 
   it.each([
@@ -308,7 +332,7 @@ describe('AuthSession', () => {
 
     await session.logout();
 
-    expect(session.getState()).toEqual({ status: 'signed-out' });
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: false });
     expect(channel.sent).toEqual([{ type: 'signed-out' }]);
     const [logout] = api.callsTo('/api/auth/logout');
     expect(logout?.init).toMatchObject({ method: 'POST', credentials: 'include' });
@@ -318,16 +342,108 @@ describe('AuthSession', () => {
     expect(bearer(api.callsTo('/api/auth/me')[0]?.init)).toBeNull();
   });
 
-  it('signs out locally even when the logout request fails', async () => {
+  it('signs out locally when the logout request fails, and keeps only the sign-out flag', async () => {
+    const marker = memoryMarker();
     const api = fakeApi({ '/api/auth/refresh': () => auth(tokenA) });
-    const { session, channel } = createSession(api.fetchFn);
+    const { session, channel } = createSession(api.fetchFn, { signOutMarker: marker });
     await session.restore();
     api.fetchFn.mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
-    await session.logout();
+    expect(await session.logout()).toEqual({ completed: false });
 
-    expect(session.getState()).toEqual({ status: 'signed-out' });
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: true });
     expect(channel.sent).toEqual([{ type: 'signed-out' }]);
+    expect(marker.value).toBe(true);
+  });
+
+  it('clears the sign-out flag when the logout reaches the API', async () => {
+    const marker = memoryMarker();
+    const api = fakeApi({
+      '/api/auth/refresh': () => auth(tokenA),
+      '/api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+    const { session } = createSession(api.fetchFn, { signOutMarker: marker });
+    await session.restore();
+
+    expect(await session.logout()).toEqual({ completed: true });
+    expect(marker.value).toBe(false);
+  });
+
+  it('sends the unfinished logout on page load instead of refreshing', async () => {
+    const marker = memoryMarker(true);
+    const api = fakeApi({
+      '/api/auth/refresh': () => auth(tokenA),
+      '/api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+    const { session } = createSession(api.fetchFn, { signOutMarker: marker });
+
+    expect(await session.restore()).toBe(false);
+
+    expect(api.callsTo('/api/auth/refresh')).toHaveLength(0);
+    expect(api.callsTo('/api/auth/logout')).toHaveLength(1);
+    expect(new Headers(api.callsTo('/api/auth/logout')[0]?.init?.headers).get('X-ResuMatch-CSRF')).toBe('1');
+    expect(marker.value).toBe(false);
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: false });
+  });
+
+  it('stays signed out and keeps the flag when the logout fails again on page load', async () => {
+    const marker = memoryMarker(true);
+    const api = fakeApi({ '/api/auth/refresh': () => auth(tokenA) });
+    api.fetchFn.mockRejectedValue(new TypeError('Failed to fetch'));
+    const { session } = createSession(api.fetchFn, { signOutMarker: marker });
+
+    expect(await session.restore()).toBe(false);
+
+    expect(api.callsTo('/api/auth/refresh')).toHaveLength(0);
+    expect(marker.value).toBe(true);
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: true });
+  });
+
+  it('never refreshes while a logout is unfinished, so a leftover cookie cannot reopen the session', async () => {
+    const marker = memoryMarker(true);
+    const api = fakeApi({
+      '/api/auth/refresh': () => auth(tokenA),
+      '/api/auth/me': () => problem(401, 'unauthorized'),
+    });
+    const { session, channel } = createSession(api.fetchFn, { signOutMarker: marker });
+
+    expect(await session.refresh()).toBe(false);
+    await session.authorizedFetch('/api/auth/me');
+    channel.receive({ type: 'signed-in' });
+    await Promise.resolve();
+
+    expect(api.callsTo('/api/auth/refresh')).toHaveLength(0);
+    expect(session.getState().status).toBe('signed-out');
+  });
+
+  it('clears the flag on a new sign-in', async () => {
+    const marker = memoryMarker(true);
+    const api = fakeApi({ '/api/auth/login': () => auth(tokenA) });
+    const { session } = createSession(api.fetchFn, { signOutMarker: marker });
+
+    expect(await session.login('deneme@example.test', 'parola')).toEqual({ ok: true });
+
+    expect(marker.value).toBe(false);
+    expect(session.getState().status).toBe('signed-in');
+  });
+
+  it('retries the unfinished logout when the browser comes back online', async () => {
+    const marker = memoryMarker(true);
+    let online: () => void = () => undefined;
+    const api = fakeApi({ '/api/auth/logout': () => new Response(null, { status: 204 }) });
+    createSession(api.fetchFn, {
+      signOutMarker: marker,
+      onOnline: (listener) => {
+        online = listener;
+      },
+    });
+
+    online();
+
+    await vi.waitFor(() => {
+      expect(marker.value).toBe(false);
+    });
+    expect(api.callsTo('/api/auth/logout')).toHaveLength(1);
   });
 
   it('signs out when another tab signs out', async () => {
@@ -339,7 +455,7 @@ describe('AuthSession', () => {
 
     channel.receive({ type: 'signed-out' });
 
-    expect(session.getState()).toEqual({ status: 'signed-out' });
+    expect(session.getState()).toEqual({ status: 'signed-out', signOutIncomplete: false });
     expect(states).toEqual(['signed-out']);
     expect(channel.sent).toEqual([]); // never echoed back
   });

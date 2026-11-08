@@ -1,19 +1,17 @@
-import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
+import type { APIRequestContext, Page, TestInfo } from '@playwright/test';
+import { expect, test } from './fixtures';
 
-// Runs through scripts/run-e2e-fullstack.sh: real API, throwaway database.
-// Every user is made up for the run; no real data is shown or stored.
+// Runs through scripts/run-e2e-fullstack.sh: real API, throwaway database,
+// web app over HTTPS (self-signed). Every user is made up for the run.
 
 const api = 'http://localhost:5252';
 const refreshCookie = '__Host-resumatch_refresh';
 const password = 'E2e-Parola-2026!';
 const welcome = 'Hoş geldiniz, Deneme';
 
-// Playwright's WebKit stores Secure cookies set over http://localhost but never
-// sends them back (checked with plain, SameSite, Secure and __Host- cookies:
-// only the ones without Secure are sent). The refresh cookie is __Host-, so it
-// must be Secure, and every step that needs it fails in WebKit over HTTP.
-const webkitSecureCookieGap =
-  'WebKit (Playwright build) does not send Secure cookies over http://localhost, so the refresh cookie never returns.';
+// Over plain HTTP, Playwright's WebKit stores Secure cookies but never sends
+// them back, so these tests use HTTPS (see docs/api/authentication.md).
+const signOutMarkerKey = 'resumatch.signOutPending';
 
 const viewports = {
   desktop: { width: 1280, height: 800 },
@@ -94,7 +92,7 @@ test('signs in, and keeps the access token out of every script-readable store', 
   expect(setCookie).toMatch(/;\s*path=\//i);
   expect(setCookie).not.toMatch(/;\s*domain=/i);
 
-  // The browser stored it over http://localhost even though it is Secure.
+  // The browser stored it.
   const cookie = (await context.cookies()).find((item) => item.name === refreshCookie);
   testInfo.annotations.push({
     type: 'refresh-cookie-stored',
@@ -121,18 +119,18 @@ test('keeps the session across a reload and in a new tab, and signs out in every
   context,
   request,
 }, testInfo) => {
-  test.fail(testInfo.project.name === 'webkit', webkitSecureCookieGap);
   await signIn(page, request, testInfo);
 
   // A reload loses the in-memory token; the page refreshes silently with the cookie.
   const refreshOnReload = page.waitForResponse('**/api/auth/refresh');
   await page.reload();
   const refreshed = await refreshOnReload;
-  // Only whether the browser sent the cookie, never its value.
-  const sentCookie = ((await refreshed.request().headerValue('cookie')) ?? '').includes(`${refreshCookie}=`);
-  testInfo.annotations.push({ type: 'refresh-cookie-sent', description: String(sentCookie) });
-  expect(sentCookie, `${testInfo.project.name} did not send ${refreshCookie} over http://localhost`).toBe(true);
-  expect(refreshed.status()).toBe(200);
+  // The API answers 200 only if the browser sent the refresh cookie back.
+  expect(refreshed.status(), `${testInfo.project.name} did not send ${refreshCookie} back`).toBe(200);
+  // Recorded for information only: Playwright's WebKit does not show cookies
+  // its network stack adds in request headers, so this can read false there.
+  const reportedCookie = ((await refreshed.request().headerValue('cookie')) ?? '').includes(`${refreshCookie}=`);
+  testInfo.annotations.push({ type: 'cookie-header-visible-to-playwright', description: String(reportedCookie) });
   await expect(page.getByRole('heading', { level: 1, name: welcome })).toBeVisible();
 
   // A second tab gets its own token from the same cookie (one refresh at a time, Web Locks).
@@ -161,4 +159,47 @@ test('shows the API error for wrong credentials in Turkish', async ({ page }) =>
 
   await expect(page.getByRole('alert')).toContainText('E-posta adresi veya parola hatalı.');
   await expect(page.getByLabel('Parola')).toHaveValue('');
+});
+
+test('signs out locally when offline, and finishes the logout on the next page load', async ({
+  page,
+  context,
+  request,
+}, testInfo) => {
+  await signIn(page, request, testInfo);
+
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Çıkış yap' }).click();
+
+  // The interface signs out and says the logout did not reach the server.
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('status')).toContainText('Çıkış tamamlanamadı, bağlantınızı kontrol edin.');
+  // Only the flag is stored; the cookie is still there because the API never saw the logout.
+  expect(await page.evaluate(() => Object.entries(localStorage))).toEqual([[signOutMarkerKey, '1']]);
+  expect((await context.cookies()).some((item) => item.name === refreshCookie)).toBe(true);
+
+  // Close the tab while offline, so the next load is what finishes the logout.
+  await page.close();
+  await context.setOffline(false);
+  const next = await context.newPage();
+  const authCalls: string[] = [];
+  next.on('request', (sent) => {
+    const path = new URL(sent.url()).pathname;
+    if (path.startsWith('/api/auth/')) authCalls.push(path);
+  });
+
+  await next.goto('/');
+
+  await expect(next).toHaveURL(/\/login$/);
+  await expect.poll(() => authCalls).toContain('/api/auth/logout');
+  expect(authCalls).not.toContain('/api/auth/refresh');
+  await expect.poll(async () => next.evaluate(() => Object.entries(localStorage))).toEqual([]);
+  await expect
+    .poll(async () => (await context.cookies()).some((item) => item.name === refreshCookie))
+    .toBe(false);
+  await expect(next.getByRole('status')).toHaveCount(0);
+
+  // The session is gone on the server too: a reload stays signed out.
+  await next.reload();
+  await expect(next).toHaveURL(/\/login$/);
 });

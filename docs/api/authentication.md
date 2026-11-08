@@ -8,7 +8,7 @@ Every sign-in opens a session for that device. The browser keeps a short-lived a
 2. **Call the API** with `Authorization: Bearer <accessToken>`. Ordinary requests do not need cookies.
 3. **On a 401**, refresh once and retry the original request once. If the refresh fails, treat the user as signed out. Never loop.
 4. **On page load**, call refresh. A 401 means there is no session and the sign-in screen is shown.
-5. **Sign out** with `POST /api/auth/logout`, then clear the in-memory token and tell other tabs.
+5. **Sign out** with `POST /api/auth/logout`, then clear the in-memory token and tell other tabs. If the request does not reach the API, sign out locally anyway and keep a `resumatch.signOutPending` flag in `localStorage` (never a token). While the flag is set, no refresh runs; the next page load, or the browser coming back online, sends the logout again and clears the flag when it succeeds. A new sign-in clears it too.
 
 Refresh and logout need `credentials: 'include'` and the `X-ResuMatch-CSRF: 1` header:
 
@@ -158,7 +158,7 @@ server: {
 
 The browser then talks only to `http://localhost:5173`, and the cookie is stored for that host. `appsettings.Development.json` already allows the origin `http://localhost:5173` with credentials; the browser's `Origin` stays `http://localhost:5173` through the proxy. Chrome, Edge and Firefox accept `Secure` and `__Host-` cookies on `http://localhost`.
 
-**WebKit over HTTP does not work.** Playwright's WebKit (27.2, Windows) stores `Secure` cookies set over `http://localhost` but never sends them back: of `plain`, `SameSite=Strict`, `Secure`, `Secure; SameSite=Strict` and `__Host-` cookies, only the two without `Secure` returned. The refresh cookie must be `Secure` because of its `__Host-` prefix, so in WebKit sign-in works but a reload, a new tab or a refresh signs the user out. Real Safari on macOS has not been checked. Testing WebKit or Safari locally needs HTTPS for the Vite server. `scripts/run-e2e-fullstack.sh` marks the affected WebKit test as an expected failure.
+**WebKit needs HTTPS.** Playwright's WebKit (27.2, Windows) stores `Secure` cookies set over `http://localhost` but never sends them back: of `plain`, `SameSite=Strict`, `Secure`, `Secure; SameSite=Strict` and `__Host-` cookies, only the two without `Secure` returned. Over HTTPS it sends all five. The refresh cookie must be `Secure` because of its `__Host-` prefix, so over plain HTTP a WebKit user is signed out on every reload. `npm run dev` stays on HTTP for Chrome, Edge and Firefox; `vite --mode e2e` (and `vite preview --mode e2e`) serves HTTPS with a throwaway self-signed certificate (`@vitejs/plugin-basic-ssl`), which `scripts/run-e2e-fullstack.sh` uses with `HttpSecurity__AllowedOrigins__0=https://localhost:4173`. Real Safari on iPhone and macOS has not been checked; it is on the launch checklist in the handoff.
 
 ## When the domain is ready
 

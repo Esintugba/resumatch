@@ -7,7 +7,8 @@
 # - API: the Release build on http://localhost:5252 in an "E2E" environment.
 #   Not Development, so user secrets are never loaded; the JWT key is random
 #   per run and no external service is configured.
-# - Web: built and served by `vite preview` on http://localhost:4173, which
+# - Web: built and served by `vite preview --mode e2e` on https://localhost:4173
+#   (self-signed certificate; WebKit sends Secure cookies only over HTTPS), which
 #   proxies /api and /health to the API, as `npm run dev` does.
 #
 # Usage: scripts/run-e2e-fullstack.sh [extra Playwright arguments]
@@ -68,7 +69,7 @@ export DOTNET_ENVIRONMENT=E2E
 export ConnectionStrings__DefaultConnection="$connection"
 Jwt__SecretKey="$(openssl rand -base64 32)"
 export Jwt__SecretKey
-export HttpSecurity__AllowedOrigins__0="http://localhost:4173"
+export HttpSecurity__AllowedOrigins__0="https://localhost:4173"
 export HttpSecurity__AllowCredentials=true
 export AuthenticationRateLimits__LoginPermitLimit=50
 export AuthenticationRateLimits__RegisterPermitLimit=50

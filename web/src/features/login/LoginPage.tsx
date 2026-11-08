@@ -104,6 +104,12 @@ export function LoginPage() {
       </h1>
       <p className="muted">{t.intro}</p>
 
+      {state.status === 'signed-out' && state.signOutIncomplete && (
+        <div className="notice" role="status">
+          <p>{t.signOutIncomplete}</p>
+        </div>
+      )}
+
       {(formError !== null || lockMessage !== null) && (
         <div ref={summary} className="alert" role="alert" tabIndex={-1}>
           <p className="alert-title">{t.errorSummary}</p>

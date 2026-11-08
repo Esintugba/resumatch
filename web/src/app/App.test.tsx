@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthSession } from '../auth/session';
+import { AuthSession, signOutMarkerKey } from '../auth/session';
 import { messages } from '../i18n';
 import { App } from './App';
 
@@ -247,7 +247,7 @@ describe('sign-in form', () => {
 });
 
 describe('token storage', () => {
-  it('never writes the access token to Web Storage, cookies or IndexedDB', async () => {
+  it('never writes the access token to Web Storage, cookies or IndexedDB, even after a failed sign-out', async () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     const cookie = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
     const cookieWrites: string[] = [];
@@ -260,6 +260,7 @@ describe('token storage', () => {
     });
     const indexedDbOpen = vi.fn();
     vi.stubGlobal('indexedDB', { open: indexedDbOpen });
+    // No route for /api/auth/logout: the request fails like a dropped connection.
     serve({
       '/health/live': () => json(200, {}),
       '/api/auth/refresh': noSession,
@@ -271,9 +272,16 @@ describe('token storage', () => {
       renderApp('/login');
       await fillAndSubmit('deneme@example.test', 'parola');
       expect(await screen.findByRole('heading', { name: messages.home.greeting('Deneme') })).toBeTruthy();
-
       expect(setItem).not.toHaveBeenCalled();
-      expect(window.localStorage.length).toBe(0);
+
+      fireEvent.click(screen.getByRole('button', { name: messages.home.signOut }));
+      expect(await screen.findByText(messages.login.signOutIncomplete)).toBeTruthy();
+
+      // The sign-out flag is the only thing written, and it holds no token.
+      expect(setItem.mock.calls).toEqual([[signOutMarkerKey, '1']]);
+      expect(window.localStorage.length).toBe(1);
+      expect(window.localStorage.getItem(signOutMarkerKey)).toBe('1');
+      expect(JSON.stringify(Object.entries(window.localStorage))).not.toContain(accessToken);
       expect(window.sessionStorage.length).toBe(0);
       expect(cookieWrites).toEqual([]);
       expect(document.cookie).not.toContain(accessToken);
@@ -281,5 +289,43 @@ describe('token storage', () => {
     } finally {
       delete (document as { cookie?: string }).cookie;
     }
+  });
+});
+
+describe('unfinished sign-out', () => {
+  it('sends the logout again on the next page load instead of restoring the session', async () => {
+    window.localStorage.setItem(signOutMarkerKey, '1');
+    const fetchFn = serve({
+      '/health/live': () => json(200, {}),
+      '/api/auth/refresh': signedIn,
+      '/api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+
+    renderApp('/');
+
+    expect(await screen.findByRole('heading', { level: 1, name: messages.login.title })).toBeTruthy();
+    await waitFor(() => {
+      expect(window.localStorage.getItem(signOutMarkerKey)).toBeNull();
+    });
+    const paths = fetchFn.mock.calls.map(([input]) => pathOf(input));
+    expect(paths).toContain('/api/auth/logout');
+    expect(paths).not.toContain('/api/auth/refresh');
+    expect(screen.queryByText(messages.login.signOutIncomplete)).toBeNull();
+  });
+
+  it('clears the flag when the user signs in again', async () => {
+    window.localStorage.setItem(signOutMarkerKey, '1');
+    serve({
+      '/health/live': () => json(200, {}),
+      '/api/auth/login': signedIn,
+      '/api/auth/me': () => json(200, user),
+    });
+
+    renderApp('/login');
+    expect(await screen.findByText(messages.login.signOutIncomplete)).toBeTruthy();
+    await fillAndSubmit('deneme@example.test', 'parola');
+
+    expect(await screen.findByRole('heading', { name: messages.home.greeting('Deneme') })).toBeTruthy();
+    expect(window.localStorage.getItem(signOutMarkerKey)).toBeNull();
   });
 });

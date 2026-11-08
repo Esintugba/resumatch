@@ -20,8 +20,27 @@ interface SignedIn {
 
 export type SessionState =
   | { status: 'unknown' }
-  | { status: 'signed-out' }
+  /** signOutIncomplete: the logout request failed, so the cookie may still exist; this tab is signed out anyway. */
+  | { status: 'signed-out'; signOutIncomplete: boolean }
   | { status: 'signed-in'; user: CurrentUser };
+
+export interface LogoutResult {
+  /** False when the API could not be reached; the logout is retried on the next page load. */
+  completed: boolean;
+}
+
+/**
+ * The only thing the session keeps in the browser: a flag that a logout has
+ * not reached the API yet. Never a token. While it is set, no refresh runs,
+ * so a refresh cookie left behind cannot bring the session back.
+ */
+export interface SignOutMarker {
+  isSet(): boolean;
+  set(): void;
+  clear(): void;
+}
+
+export const signOutMarkerKey = 'resumatch.signOutPending';
 
 export type LoginResult =
   | { ok: true }
@@ -44,6 +63,9 @@ export interface SessionDependencies {
   locks?: Locks | null;
   createChannel?: ((name: string) => Channel) | null;
   sleep?: (ms: number) => Promise<void>;
+  signOutMarker?: SignOutMarker;
+  /** Calls the listener when the browser comes back online. */
+  onOnline?: ((listener: () => void) => void) | null;
 }
 
 export const refreshLockName = 'resumatch-refresh';
@@ -65,6 +87,7 @@ export class AuthSession {
   private readonly locks: Locks | null;
   private readonly channel: Channel | null;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly marker: SignOutMarker;
 
   constructor(dependencies: SessionDependencies = {}) {
     this.baseUrl = dependencies.baseUrl ?? '';
@@ -75,6 +98,11 @@ export class AuthSession {
     this.channel = createChannel ? createChannel(authChannelName) : null;
     this.channel?.addEventListener('message', (event) => {
       void this.onChannelMessage(event.data);
+    });
+    this.marker = dependencies.signOutMarker ?? localStorageMarker();
+    const onOnline = dependencies.onOnline === undefined ? defaultOnOnline() : dependencies.onOnline;
+    onOnline?.(() => {
+      if (this.marker.isSet()) void this.finishPendingSignOut();
     });
   }
 
@@ -87,10 +115,22 @@ export class AuthSession {
     return () => this.listeners.delete(listener);
   }
 
-  /** On page load: a refresh tells whether the browser still has a session. Runs once. */
+  /**
+   * On page load: a refresh tells whether the browser still has a session.
+   * If an earlier logout did not reach the API, it is sent again instead and
+   * the user stays signed out. Runs once.
+   */
   restore(): Promise<boolean> {
     if (this.restoreStarted) return this.pendingRefresh ?? Promise.resolve(this.state.status === 'signed-in');
     this.restoreStarted = true;
+    if (this.marker.isSet()) {
+      this.pendingRefresh = this.finishPendingSignOut()
+        .then(() => false)
+        .finally(() => {
+          this.pendingRefresh = null;
+        });
+      return this.pendingRefresh;
+    }
     return this.refresh();
   }
 
@@ -110,6 +150,8 @@ export class AuthSession {
     if (response.ok) {
       const body = await readAuthResponse(response);
       if (body) {
+        // A new sign-in replaces the cookie, so an unfinished logout no longer matters here.
+        this.marker.clear();
         this.signIn(body);
         this.broadcast({ type: 'signed-in' });
         return { ok: true };
@@ -124,20 +166,18 @@ export class AuthSession {
     };
   }
 
-  /** Signs out here and in every other tab. The local sign-out happens even if the request fails. */
-  async logout(): Promise<void> {
-    try {
-      await this.fetchFn(`${this.baseUrl}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: csrfHeader,
-      });
-    } catch {
-      // The cookie may outlive a failed request; the API revokes it on the next logout or expiry.
-    } finally {
-      this.signOut();
-      this.broadcast({ type: 'signed-out' });
-    }
+  /**
+   * Signs out here and in every other tab, even if the request fails. A
+   * failed request leaves the sign-out marker, so the next page load sends
+   * the logout again instead of refreshing.
+   */
+  async logout(): Promise<LogoutResult> {
+    this.marker.set();
+    const completed = await this.sendLogout();
+    if (completed) this.marker.clear();
+    this.signOut();
+    this.broadcast({ type: 'signed-out' });
+    return { completed };
   }
 
   /**
@@ -165,8 +205,12 @@ export class AuthSession {
     return send(this.accessToken);
   }
 
-  /** One refresh at a time in this tab; concurrent callers share it. */
+  /** One refresh at a time in this tab; concurrent callers share it. None while a logout is unfinished. */
   refresh(): Promise<boolean> {
+    if (this.marker.isSet()) {
+      this.signOut();
+      return Promise.resolve(false);
+    }
     this.pendingRefresh ??= this.runRefresh().finally(() => {
       this.pendingRefresh = null;
     });
@@ -211,6 +255,26 @@ export class AuthSession {
     return false;
   }
 
+  private async finishPendingSignOut(): Promise<void> {
+    const completed = await this.sendLogout();
+    if (completed) this.marker.clear();
+    this.signOut();
+  }
+
+  /** True when the API answered; the logout endpoint always answers 204 for a valid request. */
+  private async sendLogout(): Promise<boolean> {
+    try {
+      const response = await this.fetchFn(`${this.baseUrl}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: csrfHeader,
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
   private async onChannelMessage(data: unknown): Promise<void> {
     if (!isChannelMessage(data)) return;
     if (data.type === 'signed-out') {
@@ -228,7 +292,10 @@ export class AuthSession {
 
   private signOut(): void {
     this.accessToken = null;
-    if (this.state.status !== 'signed-out') this.setState({ status: 'signed-out' });
+    const signOutIncomplete = this.marker.isSet();
+    if (this.state.status !== 'signed-out' || this.state.signOutIncomplete !== signOutIncomplete) {
+      this.setState({ status: 'signed-out', signOutIncomplete });
+    }
   }
 
   private setState(state: SessionState): void {
@@ -267,6 +334,54 @@ function isChannelMessage(value: unknown): value is ChannelMessage {
     value !== null &&
     ((value as { type?: unknown }).type === 'signed-in' || (value as { type?: unknown }).type === 'signed-out')
   );
+}
+
+/** The sign-out flag in localStorage; if storage is unavailable, it lasts only for this page. */
+function localStorageMarker(): SignOutMarker {
+  let fallback = false;
+  const storage = (): Storage | null => {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    // Storage is shared by every tab, so when it works it is the only truth:
+    // a sign-in in another tab clears the flag for this tab too.
+    isSet: () => {
+      try {
+        const store = storage();
+        return store ? store.getItem(signOutMarkerKey) === '1' : fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    set: () => {
+      fallback = true;
+      try {
+        storage()?.setItem(signOutMarkerKey, '1');
+      } catch {
+        // Private mode or blocked storage: the in-memory flag still protects this page.
+      }
+    },
+    clear: () => {
+      fallback = false;
+      try {
+        storage()?.removeItem(signOutMarkerKey);
+      } catch {
+        // Nothing stored.
+      }
+    },
+  };
+}
+
+function defaultOnOnline(): ((listener: () => void) => void) | null {
+  return typeof window === 'undefined'
+    ? null
+    : (listener) => {
+        window.addEventListener('online', listener);
+      };
 }
 
 function defaultLocks(): Locks | null {

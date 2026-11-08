@@ -20,7 +20,9 @@ Yeni oturum buradan başlar. Ayrıntılı plan [frontend-roadmap.md](frontend-ro
 - **E-posta:** Gerçek gönderim (`mail.alanadi.com`) alan adına bağlı, PR 19'a kalır. PR 11 yerelde sahte göndericiyle geliştirilip test edilir.
 - **Canlıda kimlik bilgisi:** `HttpSecurity__AllowCredentials` alan adı gelene kadar kapalı. Bu sürede refresh ve logout canlıda 403 döner, bu beklenen durumdur. Cookie akışı yerelde Vite proxy ile test edilir.
 - **Hukuk:** Veri sorumlusu yapısı ve metinler avukat görüşüne bağlı (beta çıkış şartı).
-- **WebKit ve yerel HTTP:** Playwright WebKit (27.2, Windows) `http://localhost` üzerinde `Secure` cookie'yi saklıyor ama geri göndermiyor. Refresh cookie'si `__Host-` olduğu için `Secure` olmak zorunda; WebKit'te giriş çalışıyor, yenileme ve yeni sekme oturumu kapatıyor. Gerçek Safari (macOS) denenmedi. Yerelde WebKit veya Safari testi için Vite'ın HTTPS ile çalışması gerekir (açık karar). Ayrıntı: [authentication.md](../api/authentication.md#local-development).
+- **WebKit ve yerel HTTP (karar verildi):** Playwright WebKit `http://localhost` üzerinde `Secure` cookie'yi saklıyor ama geri göndermiyor; HTTPS'te gönderiyor. Tam akış E2E testleri bu yüzden kendinden imzalı sertifikayla HTTPS'te çalışır (`vite --mode e2e`); günlük `npm run dev` HTTP'de kalır. PR 9'daki CI `web-e2e` job'unda WebKit normal test olarak çalışır, beklenen hata işareti yoktur. Ayrıntı: [authentication.md](../api/authentication.md#local-development).
+- **Token yenileme (karar verildi):** Yalnızca 401 ile; süre dolmadan önceden yenileme yok.
+- **Stil (karar verildi):** CSS Modules'a PR 8'de geçilir.
 
 ## Merge politikası
 
@@ -75,6 +77,12 @@ Migration'lar merge'den önce geçici bir PostgreSQL'de `Up → Down → Up` ola
 ## Bilinen riskler
 
 - **`minimatch` (GHSA-g3hv-75wg-m249, orta):** `web/` geliştirme bağımlılıklarında ESLint ve typescript-eslint üzerinden geliyor; tam `npm audit` 10 uyarı gösterir. Açık, saldırganın kontrol ettiği glob desenleri gerektirir; bizde desenler yalnızca ESLint yapılandırmasından gelir ve paket üretim build'ine girmez. Düzeltme yalnızca `minimatch` 11'de, ESLint 10 ise `^10.2.4` istiyor. Karar: override yok, CI'da `npm audit --omit=dev` yeterli. **ESLint `minimatch` 11'i desteklediğinde güncelle** ve tam `npm audit`'in temiz olduğunu doğrula.
+
+## Lansman kontrol listesi
+
+Beta davetinden önce elle yapılacaklar:
+
+- [ ] Gerçek iPhone Safari'de giriş → sayfa yenileme → çıkış akışını dene (özel alan adı ve HTTPS ile). Playwright WebKit gerçek Safari değildir.
 
 ## Ortam notları
 
