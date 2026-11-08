@@ -21,6 +21,10 @@ public class ResumeContactConfiguration : IEntityTypeConfiguration<ResumeContact
         builder.HasIndex(contact => contact.ResumeId)
             .IsUnique();
 
+        // Maps to the xmin system column: no table change, only the model.
+        builder.Property(contact => contact.Version)
+            .IsRowVersion();
+
         builder.Property(contact => contact.FirstName)
             .IsRequired()
             .HasMaxLength(100);

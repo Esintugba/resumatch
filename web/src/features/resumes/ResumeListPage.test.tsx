@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { messages } from '../../i18n';
-import { json, problem, renderApp, serveApi, signedInRoutes } from '../../test/app';
+import { json, problem, renderApp, serveApi, signedInRoutes, type Call } from '../../test/app';
 
 const listPath = 'GET /api/resumes?page=1&pageSize=20';
 const t = messages.resumes;
@@ -101,16 +101,29 @@ describe('resume list', () => {
     expect(api.callsTo('POST', '/api/resumes')).toHaveLength(0);
   });
 
-  it('archives after confirmation and refreshes the list', async () => {
-    let archived = false;
+  /** A server that keeps one resume's version and checks If-Match like the API. */
+  function versionedServer() {
+    const state = { version: 1, archived: false };
+    const tag = () => `"0000000${String(state.version)}"`;
+    const toggle = (archived: boolean) => (call: Call) => {
+      if (state.archived === archived) return json(200, { ...item('a', 'Birinci özgeçmiş'), eTag: tag(), isArchived: archived });
+      if (!call.headers.get('If-Match')) return problem(428, { code: 'precondition_required' });
+      if (call.headers.get('If-Match') !== tag()) return problem(412, { code: 'precondition_failed' });
+      state.archived = archived;
+      state.version++;
+      return json(200, { ...item('a', 'Birinci özgeçmiş'), eTag: tag(), isArchived: archived });
+    };
     const api = serveApi({
       ...signedInRoutes,
-      [listPath]: () => page([item('a', 'Birinci özgeçmiş', { isArchived: archived })]),
-      'PATCH /api/resumes/a/archive': () => {
-        archived = true;
-        return new Response(null, { status: 204 });
-      },
+      [listPath]: () => page([item('a', 'Birinci özgeçmiş', { eTag: tag(), isArchived: state.archived })]),
+      'PATCH /api/resumes/a/archive': toggle(true),
+      'PATCH /api/resumes/a/unarchive': toggle(false),
     });
+    return { api, state };
+  }
+
+  it('archives after confirmation with If-Match, then unarchives with the new ETag', async () => {
+    const { api } = versionedServer();
     renderApp('/app/resumes');
 
     fireEvent.click(await screen.findByRole('button', { name: `${t.archive}: Birinci özgeçmiş` }));
@@ -120,10 +133,37 @@ describe('resume list', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: t.archive }));
 
     expect(await screen.findByText(t.archivedDone('Birinci özgeçmiş'))).toBeTruthy();
+    const archivedList = await screen.findByRole('list', { name: t.archivedListLabel });
+
+    // Unarchiving needs no confirmation and uses the ETag the archive returned.
+    fireEvent.click(within(archivedList).getByRole('button', { name: `${t.unarchive}: Birinci özgeçmiş` }));
+    expect(await screen.findByText(t.unarchivedDone('Birinci özgeçmiş'))).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByRole('list', { name: t.archivedListLabel })).toBeTruthy();
+      expect(screen.queryByRole('list', { name: t.archivedListLabel })).toBeNull();
     });
-    expect(api.callsTo('PATCH', '/api/resumes/a/archive')).toHaveLength(1);
+
+    expect(api.callsTo('PATCH', '/api/resumes/a/archive').map((call) => call.headers.get('If-Match'))).toEqual([
+      '"00000001"',
+    ]);
+    expect(api.callsTo('PATCH', '/api/resumes/a/unarchive').map((call) => call.headers.get('If-Match'))).toEqual([
+      '"00000002"',
+    ]);
+  });
+
+  it('shows the conflict in Turkish and refreshes the list when the ETag is stale', async () => {
+    const { api, state } = versionedServer();
+    renderApp('/app/resumes');
+    await screen.findByRole('button', { name: `${t.archive}: Birinci özgeçmiş` });
+    state.version = 5; // Changed in another tab after the list loaded.
+
+    fireEvent.click(screen.getByRole('button', { name: `${t.archive}: Birinci özgeçmiş` }));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: t.archive }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(messages.errors.codes.precondition_failed);
+    await waitFor(() => {
+      expect(api.callsTo('GET', '/api/resumes?page=1&pageSize=20').length).toBeGreaterThan(1);
+    });
+    expect(state.archived).toBe(false);
   });
 
   it('does not archive when cancelled', async () => {

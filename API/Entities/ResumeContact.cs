@@ -2,6 +2,9 @@ namespace Api.Entities;
 
 public class ResumeContact : BaseEntity
 {
+    /// <summary>Row version (PostgreSQL xmin); the ETag for optimistic concurrency.</summary>
+    public uint Version { get; set; }
+
     public Guid ResumeId { get; set; }
 
     public string FirstName { get; set; } = string.Empty;

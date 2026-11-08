@@ -1,12 +1,15 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useSessionState } from '../../../auth/AuthContext';
+import { ApiError } from '../../../api/http';
+import { useSession, useSessionState } from '../../../auth/AuthContext';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { TextField } from '../../../components/ui/TextField';
 import { applyProblem, type ProblemMapping } from '../../../forms/problems';
 import { messages } from '../../../i18n';
-import { useUpdateContact, type ContactResponse, type ResumeEditor } from '../api';
+import { fetchEditor, resumeKeys, useUpdateContact, type ContactResponse, type ResumeEditor } from '../api';
+import { ConflictAlert } from '../editor/ConflictAlert';
 import { SaveBar, SectionSummary } from '../editor/EditorSection';
 
 const t = messages.editor.contact;
@@ -77,7 +80,14 @@ export function ContactForm({ resume, onDirtyChange, onClose }: SectionFormProps
   const fallback = { firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', email: user?.email ?? '' };
   const form = useForm<ContactValues>({ defaultValues: toValues(resume.contact, fallback), mode: 'onSubmit' });
   const { errors, isDirty } = form.formState;
-  const save = useUpdateContact(resume.id ?? '');
+  const session = useSession();
+  const client = useQueryClient();
+  const id = resume.id ?? '';
+  const save = useUpdateContact(id);
+  // The contact's own ETag when the form opened; null while there is no contact yet.
+  const [eTag, setETag] = useState<string | null>(() => resume.contact?.eTag ?? null);
+  const [conflict, setConflict] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const failureRef = useRef<HTMLDivElement>(null);
@@ -89,26 +99,54 @@ export function ContactForm({ resume, onDirtyChange, onClose }: SectionFormProps
   const visibleStatus = isDirty ? null : status;
 
   const submit = async (values: ContactValues) => {
-    if (save.isPending) return;
+    if (save.isPending || conflict) return;
     setFailure(null);
     setStatus(null);
     try {
       const saved = await save.mutateAsync({
-        firstName: values.firstName.trim(),
-        lastName: values.lastName.trim(),
-        email: values.email.trim(),
-        phoneNumber: orNull(values.phoneNumber),
-        city: orNull(values.city),
-        country: orNull(values.country),
-        postalCode: orNull(values.postalCode),
+        eTag,
+        body: {
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+          email: values.email.trim(),
+          phoneNumber: orNull(values.phoneNumber),
+          city: orNull(values.city),
+          country: orNull(values.country),
+          postalCode: orNull(values.postalCode),
+        },
       });
+      setETag(saved.eTag ?? null);
       form.reset(toValues(saved, {}));
       setStatus(messages.forms.saved(t.title));
     } catch (error) {
+      if (error instanceof ApiError && error.status === 412) {
+        setConflict(true);
+        return;
+      }
       setFailure(applyProblem(error, mapping, form.setError));
       requestAnimationFrame(() => failureRef.current?.focus());
     }
   };
+
+  async function reload() {
+    setReloading(true);
+    setFailure(null);
+    try {
+      const fresh = await client.query({
+        queryKey: resumeKeys.editor(id),
+        queryFn: ({ signal }) => fetchEditor(session, id, signal),
+        staleTime: 0,
+      });
+      setETag(fresh.contact?.eTag ?? null);
+      form.reset(toValues(fresh.contact, fallback));
+      setConflict(false);
+      setStatus(messages.conflict.reloaded);
+    } catch (error) {
+      setFailure(applyProblem(error, mapping, form.setError));
+    } finally {
+      setReloading(false);
+    }
+  }
 
   const required = { value: true, message: messages.forms.required };
   const max = (field: keyof ContactValues) => ({ value: limits[field], message: messages.forms.maxLength(limits[field]) });
@@ -116,6 +154,7 @@ export function ContactForm({ resume, onDirtyChange, onClose }: SectionFormProps
 
   return (
     <form noValidate onSubmit={(event) => void form.handleSubmit(submit)(event)}>
+      {conflict && <ConflictAlert reloading={reloading} onReload={() => void reload()} />}
       {failure !== null && (
         <Alert ref={failureRef} tone="error" role="alert" title={messages.forms.errorSummary}>
           <p>{failure}</p>
@@ -179,7 +218,7 @@ export function ContactForm({ resume, onDirtyChange, onClose }: SectionFormProps
       />
 
       <SaveBar>
-        <Button type="submit" tone="primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>
+        <Button type="submit" tone="primary" disabled={save.isPending || conflict} aria-busy={save.isPending || undefined}>
           {save.isPending ? messages.common.saving : messages.common.save}
         </Button>
         <Button tone="secondary" onClick={onClose}>

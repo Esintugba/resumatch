@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Application.Common.Exceptions;
 using Api.Application.Common.Interfaces;
 using Api.Application.Common;
+using Api.Application.Common.Concurrency;
 using Api.Application.Mapping;
 using Api.Data;
 using Api.DTOs.Common;
@@ -196,32 +197,43 @@ public sealed class ResumeService : IResumeService
         return resume.ToResponse();
     }
 
-    public async Task ArchiveAsync(
+    public async Task<ResumeResponse> SetArchivedAsync(
         Guid resumeId,
+        bool archived,
+        string? ifMatch,
         CancellationToken cancellationToken)
     {
         ValidateRequiredId(resumeId);
-
         var userId = _currentUserService.GetRequiredUserId();
 
-        var resume = await _dbContext.Resumes.SingleOrDefaultAsync(
-            item => item.Id == resumeId && item.UserId == userId,
-            cancellationToken);
+        var resume = await _dbContext.Resumes
+            .Include(item => item.Contact)
+            .Include(item => item.Links)
+            .SingleOrDefaultAsync(
+                item => item.Id == resumeId && item.UserId == userId,
+                cancellationToken);
 
         if (resume is null)
         {
             throw new NotFoundException("Resume was not found.");
         }
 
-        if (resume.IsArchived)
+        // Idempotent: asking for the state it is already in changes nothing,
+        // so there is nothing to protect and no precondition to check.
+        if (resume.IsArchived == archived)
         {
-            return;
+            return resume.ToResponse();
         }
 
-        resume.IsArchived = true;
+        _dbContext.Entry(resume)
+            .Property(item => item.Version)
+            .OriginalValue = IfMatch.RequireVersion(ifMatch);
+
+        resume.IsArchived = archived;
         resume.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        return resume.ToResponse();
     }
 
     public async Task DeleteAsync(

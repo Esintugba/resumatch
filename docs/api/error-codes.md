@@ -70,6 +70,19 @@ All have status 409 unless noted.
 | `parse_cooldown` | Status 429. The same content was parsed recently. See `Retry-After`. |
 | `refresh_token_superseded` | Another tab refreshed with the same cookie a moment ago. The browser already holds the new cookie: retry the refresh once. |
 
+## Optimistic concurrency
+
+Records with an `eTag` are changed with `If-Match: <eTag>`. Without it the answer is 428 `precondition_required`; with an outdated one, 412 `precondition_failed`. Reload the record, then retry with the new ETag. Every successful change returns the new ETag in the body and the `ETag` header.
+
+| Endpoint | Rule |
+|---|---|
+| `PUT /api/resumes/{id}` | If-Match required. |
+| `PATCH /api/resumes/{id}/archive`, `/unarchive` | If-Match required to change the state; 200 with the resume and its new ETag. Already in that state: 200, unchanged, no precondition. |
+| `PUT /api/resumes/{id}/contact` | No contact yet: send no If-Match; 201 creates it. With If-Match while there is no contact, or when another request created it first: 412. Existing contact: If-Match required. |
+| `DELETE /api/resumes/{id}/contact` | If-Match required. |
+
+The resume's main fields and its archive state share one ETag; the contact has its own.
+
 ## Validation errors
 
 ```json

@@ -20,7 +20,7 @@ export const resumeListPageSize = 20;
  * save of any of them changes the ETag every other form editing one of them
  * must send as If-Match. PR 8b: the skills section's "not in the catalog"
  * note is `unlistedSkillsNote`, so it shares this ETag with the main fields.
- * Contact, experience, education and skills are separate rows.
+ * Contact has its own ETag; experience, education and skills are separate rows.
  */
 export const fieldsSharingResumeETag = [
   'title',
@@ -106,17 +106,31 @@ export function useCreateResume() {
   });
 }
 
-export function useArchiveResume() {
+/**
+ * Archives or unarchives with If-Match set to the ETag the list shows. The
+ * API answers 200 with the new ETag, which every cached copy then gets.
+ */
+export function useSetArchived() {
   const session = useSession();
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiJson<undefined>(session, `/api/resumes/${encodeURIComponent(id)}/archive`, { method: 'PATCH' }),
-    onSuccess: (_result, id) =>
-      Promise.all([
-        client.invalidateQueries({ queryKey: [...resumeKeys.all, 'list'] }),
-        client.invalidateQueries({ queryKey: resumeKeys.editor(id) }),
-      ]),
+    mutationFn: ({ id, eTag, archived }: { id: string; eTag: string; archived: boolean }) =>
+      apiJson<ResumeResponse>(
+        session,
+        `/api/resumes/${encodeURIComponent(id)}/${archived ? 'archive' : 'unarchive'}`,
+        { method: 'PATCH', ifMatch: eTag },
+      ),
+    onSuccess: (saved, { id }) => {
+      if (saved.eTag !== undefined) {
+        rememberResumeETag(client, id, saved.eTag, {
+          isArchived: saved.isArchived ?? false,
+          ...(saved.updatedAt === undefined ? {} : { updatedAt: saved.updatedAt }),
+        });
+      }
+      return client.invalidateQueries({ queryKey: [...resumeKeys.all, 'list'] });
+    },
+    // A 412 means the list is out of date; fetch it again for fresh ETags.
+    onError: () => client.invalidateQueries({ queryKey: [...resumeKeys.all, 'list'] }),
   });
 }
 
@@ -148,13 +162,20 @@ export function useUpdateResumeMain(id: string) {
   });
 }
 
-/** Contact has no ETag in the API, so the last save wins (see the PR notes). */
+/**
+ * Saves the contact. It has its own ETag: an existing contact is sent with
+ * If-Match (412 when changed elsewhere); a new one is created without it.
+ */
 export function useUpdateContact(id: string) {
   const session = useSession();
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: ContactRequest) =>
-      apiJson<ContactResponse>(session, `/api/resumes/${encodeURIComponent(id)}/contact`, { method: 'PUT', body }),
+    mutationFn: ({ body, eTag }: { body: ContactRequest; eTag: string | null }) =>
+      apiJson<ContactResponse>(session, `/api/resumes/${encodeURIComponent(id)}/contact`, {
+        method: 'PUT',
+        body,
+        ...(eTag ? { ifMatch: eTag } : {}),
+      }),
     onSuccess: (contact) => {
       client.setQueryData<ResumeEditor>(resumeKeys.editor(id), (current) =>
         current ? { ...current, contact } : current,

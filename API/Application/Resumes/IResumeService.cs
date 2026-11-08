@@ -28,8 +28,15 @@ public interface IResumeService
         UpdateResumeRequest request,
         CancellationToken cancellationToken);
 
-    Task ArchiveAsync(
+    /// <summary>
+    /// Archives or unarchives. Already in that state: returns the resume
+    /// unchanged, whatever If-Match says. Otherwise If-Match must hold the
+    /// current ETag: 428 without, 412 when stale.
+    /// </summary>
+    Task<ResumeResponse> SetArchivedAsync(
         Guid resumeId,
+        bool archived,
+        string? ifMatch,
         CancellationToken cancellationToken);
 
     Task DeleteAsync(

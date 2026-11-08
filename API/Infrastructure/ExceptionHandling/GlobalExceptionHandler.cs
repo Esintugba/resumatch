@@ -138,6 +138,15 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     Extensions = { ["code"] = ApiErrorCodes.PreconditionRequired }
                 },
 
+            PreconditionFailedException preconditionFailedException =>
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status412PreconditionFailed,
+                    Title = "Precondition Failed",
+                    Detail = preconditionFailedException.Message,
+                    Extensions = { ["code"] = ApiErrorCodes.PreconditionFailed }
+                },
+
             TooManyRequestsException tooManyRequestsException =>
                 new ProblemDetails
                 {
