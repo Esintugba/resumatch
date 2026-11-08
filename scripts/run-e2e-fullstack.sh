@@ -2,7 +2,7 @@
 # Runs the web app's full-stack Playwright tests (web/e2e-fullstack) against a
 # real API and a throwaway PostgreSQL container.
 #
-# - PostgreSQL: a new container on 127.0.0.1:55432 with a random password,
+# - PostgreSQL: a new container on a free 127.0.0.1 port with a random password,
 #   removed afterwards.
 # - API: the Release build on http://localhost:5252 in an "E2E" environment.
 #   Not Development, so user secrets are never loaded; the JWT key is random
@@ -18,10 +18,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 api_url="http://localhost:5252"
-db_port=55432
 container="resumatch-e2e-$(openssl rand -hex 4)"
 db_password="$(openssl rand -hex 16)"
-connection="Host=127.0.0.1;Port=$db_port;Database=resumatch_e2e;Username=postgres;Password=$db_password"
 api_pid=""
 api_log="$(mktemp)"
 
@@ -35,7 +33,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for port in 5252 4173 "$db_port"; do
+for port in 5252 4173; do
   if curl --silent --max-time 2 --output /dev/null "http://127.0.0.1:$port/"; then
     echo "Port $port is in use. Stop the process on it first (for example a running API or preview server)." >&2
     exit 1
@@ -45,7 +43,10 @@ done
 echo "--- Starting PostgreSQL ($container)"
 docker run --detach --rm --name "$container" \
   --env POSTGRES_PASSWORD="$db_password" --env POSTGRES_DB=resumatch_e2e \
-  --publish "127.0.0.1:$db_port:5432" postgres:17.6-alpine > /dev/null
+  --publish "127.0.0.1::5432" postgres:17.6-alpine > /dev/null
+# Docker picks a free loopback port; Windows reserves ranges that change between boots.
+db_port="$(docker port "$container" 5432/tcp | head -1 | sed 's/.*://')"
+connection="Host=127.0.0.1;Port=$db_port;Database=resumatch_e2e;Username=postgres;Password=$db_password"
 # Over TCP: the image first runs a temporary server on the Unix socket only,
 # then restarts, so a socket check can succeed too early.
 ready=false

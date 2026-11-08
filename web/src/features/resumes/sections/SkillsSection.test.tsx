@@ -108,7 +108,8 @@ describe('skills', () => {
     });
     renderApp(`/app/resumes/${id}`);
     const search = await openSkills();
-    expect(screen.getByText(t.searchHint, { exact: false })).toBeTruthy();
+    expect(screen.getByText(t.searchHint).textContent).toBe(t.searchHint);
+    expect(screen.getByText(t.counter(0, 100))).toBeTruthy();
 
     fireEvent.change(search, { target: { value: 'r' } });
 

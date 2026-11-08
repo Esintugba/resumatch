@@ -44,6 +44,11 @@
   padding: 0 0 var(--space-6);
 }
 
+.nothing {
+  margin: 0;
+  color: var(--color-muted);
+}
+
 .summary {
   margin: 0;
   display: grid;

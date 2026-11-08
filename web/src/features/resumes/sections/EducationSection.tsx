@@ -221,14 +221,26 @@ function EducationForm({ resume, item, onDirtyChange, onSaved, onCancel }: ItemF
         year={form.register('startYear', { validate: monthCheck('start') })}
         error={errors.startYear?.message}
       />
-      <CheckboxField label={t.isCurrent} registration={form.register('isCurrent')} />
-      <MonthYearField
-        legend={t.endDate}
-        disabled={isCurrent}
-        month={form.register('endMonth')}
-        year={form.register('endYear', { validate: (_value, all) => (all.isCurrent ? true : monthCheck('end')()) })}
-        error={isCurrent ? undefined : errors.endYear?.message}
+      <CheckboxField
+        label={t.isCurrent}
+        registration={form.register('isCurrent', {
+          // Ongoing has no end: an end typed before is dropped, not kept hidden.
+          onChange: (event: { target: { checked: boolean } }) => {
+            if (!event.target.checked) return;
+            form.setValue('endMonth', '', { shouldDirty: true });
+            form.setValue('endYear', '', { shouldDirty: true });
+            form.clearErrors('endYear');
+          },
+        })}
       />
+      {!isCurrent && (
+        <MonthYearField
+          legend={t.endDate}
+          month={form.register('endMonth')}
+          year={form.register('endYear', { validate: (_value, all) => (all.isCurrent ? true : monthCheck('end')()) })}
+          error={errors.endYear?.message}
+        />
+      )}
       <TextField
         label={t.grade}
         hint={t.gradeHint}

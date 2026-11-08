@@ -67,7 +67,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function nth(elements: HTMLElement[], index: number): HTMLElement {
+function nth<T extends HTMLElement>(elements: T[], index: number): T {
   const element = elements[index];
   if (!element) throw new Error(`No element at ${String(index)}.`);
   return element;
@@ -116,6 +116,23 @@ describe('experience', () => {
       bullets: [],
     });
     expect(screen.getByText('Kıdemli geliştirici – Uydurma A.Ş.')).toBeTruthy();
+  });
+
+  it('hides the end date while ongoing and drops an end typed before', async () => {
+    serveApi({ ...signedInRoutes, [`GET ${editorPath}`]: () => json(200, editor()) });
+    renderApp(`/app/resumes/${id}`);
+    await openSection(x.title);
+    fireEvent.click(await screen.findByRole('button', { name: it8.add(x.one) }));
+    await screen.findByLabelText(x.position);
+    expect(screen.getByRole('group', { name: x.endDate })).toBeTruthy();
+    fireEvent.change(nth(screen.getAllByLabelText(messages.dates.year), 1), { target: { value: '2021' } });
+
+    fireEvent.click(screen.getByLabelText(x.isCurrent));
+    expect(screen.queryByRole('group', { name: x.endDate })).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(x.isCurrent));
+    expect(screen.getByRole('group', { name: x.endDate })).toBeTruthy();
+    expect(nth(screen.getAllByLabelText<HTMLInputElement>(messages.dates.year), 1).value).toBe('');
   });
 
   it('refuses an end date before the start in Turkish, before sending', async () => {

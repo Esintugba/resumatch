@@ -262,14 +262,26 @@ function ExperienceForm({ resume, item, onDirtyChange, onSaved, onCancel }: Item
         year={form.register('startYear', { validate: monthCheck('start', true) })}
         error={errors.startYear?.message}
       />
-      <CheckboxField label={t.isCurrent} registration={form.register('isCurrent')} />
-      <MonthYearField
-        legend={t.endDate}
-        disabled={isCurrent}
-        month={form.register('endMonth')}
-        year={form.register('endYear', { validate: (_value, all) => (all.isCurrent ? true : monthCheck('end', false)()) })}
-        error={isCurrent ? undefined : errors.endYear?.message}
+      <CheckboxField
+        label={t.isCurrent}
+        registration={form.register('isCurrent', {
+          // Ongoing has no end: an end typed before is dropped, not kept hidden.
+          onChange: (event: { target: { checked: boolean } }) => {
+            if (!event.target.checked) return;
+            form.setValue('endMonth', '', { shouldDirty: true });
+            form.setValue('endYear', '', { shouldDirty: true });
+            form.clearErrors('endYear');
+          },
+        })}
       />
+      {!isCurrent && (
+        <MonthYearField
+          legend={t.endDate}
+          month={form.register('endMonth')}
+          year={form.register('endYear', { validate: (_value, all) => (all.isCurrent ? true : monthCheck('end', false)()) })}
+          error={errors.endYear?.message}
+        />
+      )}
       <TextField
         multiline
         label={t.description}

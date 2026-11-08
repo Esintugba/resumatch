@@ -124,6 +124,7 @@ export const tr = {
     archivedBanner: 'Bu özgeçmiş arşivlendi. Düzenlemeye devam edebilirsiniz.',
     notFound: 'Bu özgeçmiş bulunamadı.',
     sectionsLabel: 'Özgeçmiş bölümleri',
+    nothingYet: 'Henüz bilgi girilmedi.',
     main: {
       title: 'Ana bilgiler',
       resumeTitle: 'Özgeçmiş adı',
@@ -224,6 +225,7 @@ export const tr = {
     listLabel: 'Eklenen beceriler',
     search: 'Katalogda beceri ara',
     searchHint: 'En az bir karakter yazın. Tek karakterde yalnızca tam eşleşmeler gösterilir.',
+    counter: (count: number, max: number) => `Eklenen beceri: ${String(count)} / ${String(max)}`,
     searching: 'Aranıyor…',
     results: (count: number) => (count === 0 ? 'Sonuç yok.' : `${String(count)} sonuç.`),
     resultsLabel: 'Arama sonuçları',

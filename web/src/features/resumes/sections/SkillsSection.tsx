@@ -185,7 +185,7 @@ export function SkillsSection({ resume, onDirtyChange }: SectionFormProps) {
       <div className={styles.search} role="search">
         <label htmlFor={searchId}>{t.search}</label>
         <p id={`${searchId}-hint`} className={text.muted}>
-          {t.searchHint} {messages.items.count(skills.length, sectionLimits.skills)}
+          {t.searchHint}
         </p>
         <input
           id={searchId}
@@ -198,6 +198,7 @@ export function SkillsSection({ resume, onDirtyChange }: SectionFormProps) {
             setTerm(event.target.value);
           }}
         />
+        <p className={styles.counter}>{t.counter(skills.length, sectionLimits.skills)}</p>
         <p id={`${searchId}-count`} role="status" className={text.muted}>
           {search?.status === 'loading' ? t.searching : search?.status === 'done' ? t.results(search.results.length) : ''}
         </p>
