@@ -115,6 +115,8 @@ dotnet test ResuMatch.slnx --filter "FullyQualifiedName!~API.Tests.Integration"
 dotnet test ResuMatch.slnx --filter "FullyQualifiedName~API.Tests.Integration"
 ```
 
+Tests never use your user secrets, even when they host the API in `Development`: the test factory sets `Hosting__IgnoreUserSecrets=true`, `Program` drops the user secrets source before reading any setting, and the factory stops the host if any configuration source outside its allowed list remains. `UserSecretsIsolationTests` proves this with a fake `secrets.json`.
+
 Integration tests live in the `API.Tests.Integration.*` namespace. They start a disposable PostgreSQL container, run serially in one xUnit collection, and host the API in memory with `WebApplicationFactory`. A few tests also start the API on real Kestrel on a dynamic loopback port.
 
 ## What CI checks
