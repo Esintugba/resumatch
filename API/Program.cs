@@ -49,6 +49,8 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+// Before any setting is read: tests must never see a developer's user secrets.
+Api.Infrastructure.Hosting.UserSecretsConfiguration.RemoveWhenRequested(builder.Configuration);
 
 var requestLimitSection = builder.Configuration.GetSection(
     RequestLimitOptions.SectionName);
