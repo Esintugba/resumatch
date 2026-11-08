@@ -29,13 +29,8 @@
   cursor: pointer;
 }
 
-.toggle::after {
-  content: '▸';
+.chevron {
   color: var(--color-muted);
-}
-
-.toggle[aria-expanded='true']::after {
-  content: '▾';
 }
 
 .dirty {
@@ -47,6 +42,11 @@
 
 .body {
   padding: 0 0 var(--space-6);
+}
+
+.nothing {
+  margin: 0;
+  color: var(--color-muted);
 }
 
 .summary {

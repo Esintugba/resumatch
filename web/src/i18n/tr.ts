@@ -1,4 +1,7 @@
 import type { ApiErrorCode } from '../api/problem';
+import type { components } from '../api/schema';
+
+type Schemas = components['schemas'];
 
 // Every text the interface shows. English is added later as a second catalog
 // of the same type (see Messages), so nothing here may be inlined elsewhere.
@@ -121,6 +124,7 @@ export const tr = {
     archivedBanner: 'Bu özgeçmiş arşivlendi. Düzenlemeye devam edebilirsiniz.',
     notFound: 'Bu özgeçmiş bulunamadı.',
     sectionsLabel: 'Özgeçmiş bölümleri',
+    nothingYet: 'Henüz bilgi girilmedi.',
     main: {
       title: 'Ana bilgiler',
       resumeTitle: 'Özgeçmiş adı',
@@ -139,6 +143,123 @@ export const tr = {
       country: 'Ülke',
       postalCode: 'Posta kodu',
     },
+  },
+
+  dates: {
+    month: 'Ay',
+    year: 'Yıl',
+    chooseMonth: 'Ay seçin',
+    months: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
+    present: 'Halen',
+    yearInvalid: 'Dört haneli bir yıl girin.',
+    incomplete: 'Ayı ve yılı birlikte girin.',
+    endBeforeStart: 'Bitiş tarihi başlangıç tarihinden önce olamaz.',
+  },
+
+  items: {
+    add: (what: string) => `${what} ekle`,
+    edit: (label: string) => `Düzenle: ${label}`,
+    delete: (label: string) => `Sil: ${label}`,
+    moveUp: (label: string) => `Yukarı taşı: ${label}`,
+    moveDown: (label: string) => `Aşağı taşı: ${label}`,
+    moved: (label: string, position: number, total: number) =>
+      `${label} ${String(position)}. sıraya taşındı (${String(total)} kayıt).`,
+    deleteTitle: (label: string) => `“${label}” silinsin mi?`,
+    deleteDescription: 'Bu kayıt kalıcı olarak silinir.',
+    deleteConfirm: 'Sil',
+    deleted: (label: string) => `“${label}” silindi.`,
+    saved: (label: string) => `“${label}” kaydedildi.`,
+    newItem: 'Yeni kayıt',
+    unsavedTitle: 'Kaydedilmemiş değişiklikler var',
+    unsavedDescription: 'Açık formdaki değişiklikler kaybolacak.',
+    count: (count: number, max: number) => `${String(count)} / ${String(max)}`,
+  },
+
+  experience: {
+    title: 'Deneyim',
+    one: 'Deneyim',
+    empty: 'Henüz deneyim eklenmedi.',
+    companyName: 'Şirket',
+    position: 'Pozisyon',
+    employmentType: 'Çalışma şekli',
+    chooseEmploymentType: 'Seçin',
+    location: 'Konum',
+    startDate: 'Başlangıç',
+    endDate: 'Bitiş',
+    isCurrent: 'Halen burada çalışıyorum',
+    description: 'Açıklama',
+    bulletsKept: (count: number) => `Bu deneyimin ${String(count)} maddesi değişmeden korunur.`,
+    employmentTypes: {
+      FullTime: 'Tam zamanlı',
+      PartTime: 'Yarı zamanlı',
+      Contract: 'Sözleşmeli',
+      Freelance: 'Serbest',
+      Internship: 'Staj',
+      Temporary: 'Geçici',
+      Volunteer: 'Gönüllü',
+      Other: 'Diğer',
+    } satisfies Record<Schemas['EmploymentType'], string>,
+  },
+
+  education: {
+    title: 'Eğitim',
+    one: 'Eğitim',
+    empty: 'Henüz eğitim eklenmedi.',
+    institutionName: 'Okul',
+    degree: 'Derece',
+    fieldOfStudy: 'Bölüm',
+    location: 'Konum',
+    startDate: 'Başlangıç',
+    endDate: 'Bitiş',
+    isCurrent: 'Halen devam ediyor',
+    grade: 'Not ortalaması',
+    gradeScale: 'Not ölçeği',
+    gradeHint: 'Örneğin 3,45 ve 4',
+    gradeInvalid: 'Geçerli bir sayı girin.',
+    description: 'Açıklama',
+  },
+
+  skills: {
+    title: 'Beceriler',
+    empty: 'Henüz beceri eklenmedi.',
+    listLabel: 'Eklenen beceriler',
+    search: 'Katalogda beceri ara',
+    searchHint: 'En az bir karakter yazın. Tek karakterde yalnızca tam eşleşmeler gösterilir.',
+    counter: (count: number, max: number) => `Eklenen beceri: ${String(count)} / ${String(max)}`,
+    searching: 'Aranıyor…',
+    results: (count: number) => (count === 0 ? 'Sonuç yok.' : `${String(count)} sonuç.`),
+    resultsLabel: 'Arama sonuçları',
+    add: (name: string) => `Ekle: ${name}`,
+    addShort: 'Ekle',
+    added: 'Eklendi',
+    addedDone: (name: string) => `“${name}” eklendi.`,
+    notFound: (term: string) => `“${term}” katalogda yok.`,
+    notFoundHint: 'Katalogda olmayan becerileri aşağıdaki nota yazabilirsiniz; analizde kullanılmaz ama özgeçmişinizde kalır.',
+    addToNote: (term: string) => `“${term}” notuna ekle`,
+    level: 'Seviye',
+    levelFor: (name: string) => `Seviye: ${name}`,
+    noLevel: 'Belirtilmedi',
+    levelSaved: (name: string) => `“${name}” seviyesi kaydedildi.`,
+    levels: { Beginner: 'Başlangıç', Intermediate: 'Orta', Advanced: 'İleri', Expert: 'Uzman' } satisfies Record<
+      Schemas['SkillLevel'],
+      string
+    >,
+    categories: {
+      ProgrammingLanguage: 'Programlama dili',
+      Frontend: 'Ön yüz',
+      Backend: 'Arka uç',
+      Database: 'Veritabanı',
+      DevOps: 'DevOps',
+      Cloud: 'Bulut',
+      Testing: 'Test',
+      Architecture: 'Mimari',
+      Tool: 'Araç',
+      SoftSkill: 'Kişisel beceri',
+      Other: 'Diğer',
+    } satisfies Record<Schemas['SkillCategory'], string>,
+    note: 'Katalogda olmayan beceriler',
+    noteHint: 'Virgülle ayırarak yazın. En fazla 500 karakter.',
+    noteSaved: 'Not kaydedildi.',
   },
 
   errors: {

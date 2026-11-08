@@ -30,6 +30,10 @@ export function EditorSection({ title, open, dirty, onToggle, summary, children 
         >
           {title}
           {open && dirty && <span className={styles.dirty}>{messages.unsaved.title}</span>}
+          {/* Decoration only; kept out of the button's accessible name. */}
+          <span aria-hidden="true" className={styles.chevron}>
+            {open ? '▾' : '▸'}
+          </span>
         </button>
       </h2>
       <div id={`${id}-body`} className={styles.body}>
@@ -41,6 +45,10 @@ export function EditorSection({ title, open, dirty, onToggle, summary, children 
 
 /** The read-only view of a closed section. */
 export function SectionSummary({ rows }: { rows: [label: string, value: string | null | undefined][] }) {
+  // A section with nothing in it says so once, not once per field.
+  if (rows.every(([, value]) => !value?.trim())) {
+    return <p className={styles.nothing}>{messages.editor.nothingYet}</p>;
+  }
   return (
     <dl className={styles.summary}>
       {rows.map(([label, value]) => (

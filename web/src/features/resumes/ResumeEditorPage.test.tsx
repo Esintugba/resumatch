@@ -435,3 +435,19 @@ describe('contact', () => {
     ]);
   });
 });
+
+describe('closed section summaries', () => {
+  it('say once that an empty section has nothing yet, and list a partly filled one', async () => {
+    serveApi({
+      ...signedInRoutes,
+      [`GET ${editorPath}`]: () =>
+        json(200, editor({ professionalTitle: null, summary: null, targetRole: null, contact: null })),
+    });
+    renderApp(`/app/resumes/${id}`);
+
+    await screen.findByRole('button', { name: messages.editor.contact.title });
+    // Contact is empty: one line. Main has only its title: rows, with "Girilmedi" for the rest.
+    expect(screen.getAllByText(messages.editor.nothingYet)).toHaveLength(1);
+    expect(screen.getAllByText(messages.common.empty)).toHaveLength(3);
+  });
+});
