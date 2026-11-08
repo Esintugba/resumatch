@@ -34,6 +34,7 @@ public sealed class ResumeEducationsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(EducationResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<EducationResponse>> Create(
         Guid resumeId,
         [FromBody] CreateEducationRequest request,

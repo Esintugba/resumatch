@@ -31,6 +31,7 @@ public sealed class ResumeLinksController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ResumeLinkResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ResumeLinkResponse>> Create(
         Guid resumeId,
         [FromBody] ResumeLinkRequest request,
