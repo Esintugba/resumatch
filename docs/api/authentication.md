@@ -140,12 +140,21 @@ A background job deletes sessions, and through cascade their refresh tokens, onc
 
 ## Local development
 
-Run the API with the `http` profile (`http://localhost:5252`) and let Vite proxy `/api`:
+Run the API with the `http` profile (`http://localhost:5252`) and let Vite proxy `/api` and `/health`:
 
 ```ts
-// vite.config.ts
-server: { proxy: { '/api': { target: 'http://localhost:5252', changeOrigin: true } } }
+// web/vite.config.ts
+server: {
+  port: 5173,
+  strictPort: true,
+  proxy: {
+    '/api': { target: 'http://localhost:5252', changeOrigin: true },
+    '/health': { target: 'http://localhost:5252', changeOrigin: true },
+  },
+}
 ```
+
+`/health` is proxied for the cold start check, which calls `/health/live`; it carries no cookie or token. `strictPort` keeps Vite on 5173, the only origin the API allows.
 
 The browser then talks only to `http://localhost:5173`, and the cookie is stored for that host. `appsettings.Development.json` already allows the origin `http://localhost:5173` with credentials; the browser's `Origin` stays `http://localhost:5173` through the proxy. Chrome, Edge and Firefox accept `Secure` and `__Host-` cookies on `http://localhost`; Safari has not been verified.
 
