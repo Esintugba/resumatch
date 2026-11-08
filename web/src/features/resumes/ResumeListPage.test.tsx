@@ -35,22 +35,42 @@ describe('resume list', () => {
     expect(screen.queryByRole('list', { name: t.listLabel })).toBeNull();
   });
 
-  it('lists resumes with their badges and archives only active ones', async () => {
+  it('lists active resumes first and archived ones in a separate archive section', async () => {
     serveApi({
       ...signedInRoutes,
       [listPath]: () =>
-        page([item('a', 'Birinci özgeçmiş', { isMasterResume: true }), item('b', 'Eski özgeçmiş', { isArchived: true })]),
+        page([
+          item('b', 'Eski özgeçmiş', { isArchived: true }),
+          item('a', 'Birinci özgeçmiş', { isMasterResume: true }),
+        ]),
     });
     renderApp('/app/resumes');
 
-    const list = await screen.findByRole('list', { name: t.listLabel });
-    const [first, second] = within(list).getAllByRole('listitem');
-    if (!first || !second) throw new Error('Expected two items.');
+    const active = await screen.findByRole('list', { name: t.listLabel });
+    const [first] = within(active).getAllByRole('listitem');
+    if (!first) throw new Error('Expected an active item.');
+    expect(within(active).getAllByRole('listitem')).toHaveLength(1);
     expect(within(first).getByRole('link', { name: 'Birinci özgeçmiş' }).getAttribute('href')).toBe('/app/resumes/a');
     expect(within(first).getByText(t.master)).toBeTruthy();
+    expect(within(first).getByRole('link', { name: `${messages.common.edit}: Birinci özgeçmiş` })).toBeTruthy();
     expect(within(first).getByRole('button', { name: `${t.archive}: Birinci özgeçmiş` })).toBeTruthy();
-    expect(within(second).getByText(t.archived)).toBeTruthy();
-    expect(within(second).queryByRole('button', { name: new RegExp(t.archive) })).toBeNull();
+
+    const archiveSection = screen.getByRole('region', { name: t.archiveSection });
+    const archivedList = within(archiveSection).getByRole('list', { name: t.archivedListLabel });
+    const [old] = within(archivedList).getAllByRole('listitem');
+    if (!old) throw new Error('Expected an archived item.');
+    expect(within(old).getByText(t.archived)).toBeTruthy();
+    expect(within(old).queryByRole('button', { name: new RegExp(t.archive) })).toBeNull();
+    // The archive comes after the active list.
+    expect(active.compareDocumentPosition(archiveSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('says there is no active resume when all are archived', async () => {
+    serveApi({ ...signedInRoutes, [listPath]: () => page([item('b', 'Eski özgeçmiş', { isArchived: true })]) });
+    renderApp('/app/resumes');
+
+    expect(await screen.findByText(t.noActive)).toBeTruthy();
+    expect(screen.getByRole('list', { name: t.archivedListLabel })).toBeTruthy();
   });
 
   it('creates a resume and opens it in the editor', async () => {
@@ -101,7 +121,7 @@ describe('resume list', () => {
 
     expect(await screen.findByText(t.archivedDone('Birinci özgeçmiş'))).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByText(t.archived)).toBeTruthy();
+      expect(screen.getByRole('list', { name: t.archivedListLabel })).toBeTruthy();
     });
     expect(api.callsTo('PATCH', '/api/resumes/a/archive')).toHaveLength(1);
   });

@@ -65,19 +65,30 @@
   border-radius: 999px;
 }
 
+/* Two fixed columns: Edit always sits in the first, so it lines up across cards. */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 7.5rem);
   gap: var(--space-2);
-  justify-content: flex-end;
 }
 
-.edit {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  font-weight: 600;
+.archive {
+  margin-top: var(--space-6);
+}
+
+.archiveHeading {
+  margin: 0 0 var(--space-3);
+  font-size: 1.125rem;
+  color: var(--color-muted);
+}
+
+.archived {
+  background: var(--color-bg);
+  color: var(--color-muted);
+}
+
+.archived a {
+  color: inherit;
 }
 
 .pager {
@@ -96,11 +107,6 @@
   }
 
   .actions {
-    justify-content: stretch;
-  }
-
-  .actions > * {
-    flex: 1 1 auto;
-    justify-content: center;
+    grid-template-columns: repeat(2, 1fr);
   }
 }

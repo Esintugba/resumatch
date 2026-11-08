@@ -35,3 +35,10 @@
 .block {
   width: 100%;
 }
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}

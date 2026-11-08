@@ -72,6 +72,9 @@ export const tr = {
     description: 'Bu bölümde kaydetmediğiniz değişiklikler kaybolacak.',
     discard: 'Değişiklikleri at',
     stay: 'Bu bölümde kal',
+    signOutDescription: 'Kaydetmediğiniz değişiklikler kaybolacak. Yine de çıkış yapılsın mı?',
+    signOutConfirm: 'Değişiklikleri at ve çıkış yap',
+    signOutStay: 'Sayfada kal',
   },
 
   conflict: {
@@ -94,6 +97,9 @@ export const tr = {
     creating: 'Oluşturuluyor…',
     empty: 'Henüz bir özgeçmişiniz yok. İlkini yukarıdan oluşturarak başlayın.',
     listLabel: 'Özgeçmiş listesi',
+    noActive: 'Etkin özgeçmişiniz yok. Yeni bir tane oluşturabilirsiniz.',
+    archiveSection: 'Arşiv',
+    archivedListLabel: 'Arşivlenen özgeçmişler',
     updatedAt: (date: string) => `Son değişiklik: ${date}`,
     master: 'Ana özgeçmiş',
     archived: 'Arşivlendi',

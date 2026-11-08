@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { messages } from '../../i18n';
 import { json, problem, renderApp, serveApi, signedInRoutes, type Call } from '../../test/app';
+import { resumeKeys, type ResumeListPage } from './api';
 
 const id = 'r1';
 const editorPath = `/api/resumes/${id}/editor`;
@@ -76,6 +77,49 @@ describe('main info', () => {
       templateKey: 'classic',
       targetRole: 'Ekip lideri',
     });
+  });
+
+  it('never gets a 412 from its own saves, and every cached copy gets the new ETag', async () => {
+    // The server checks If-Match against its current version, as the API does.
+    let version = 1;
+    const tag = () => `"0000000${String(version)}"`;
+    const api = serveApi({
+      ...signedInRoutes,
+      'GET /api/resumes?page=1&pageSize=20': () =>
+        json(200, {
+          items: [{ id, eTag: tag(), title: 'Yazılım geliştirici', isArchived: false, createdAt: '2026-11-01T10:00:00Z' }],
+          page: 1,
+          pageSize: 20,
+          totalCount: 1,
+          totalPages: 1,
+        }),
+      [`GET ${editorPath}`]: () => json(200, editor({ eTag: tag() })),
+      [`PUT ${resumePath}`]: (call) => {
+        if (call.headers.get('If-Match') !== tag()) return problem(412, { code: 'precondition_failed' });
+        version++;
+        return saved(call, tag());
+      },
+    });
+    const { queryClient } = renderApp('/app/resumes');
+    fireEvent.click(await screen.findByRole('link', { name: `${messages.common.edit}: Yazılım geliştirici` }));
+
+    for (const value of ['Birinci', 'İkinci', 'Üçüncü']) {
+      const title = await openMain();
+      fireEvent.change(title, { target: { value } });
+      fireEvent.click(screen.getByRole('button', { name: messages.common.save }));
+      await screen.findByText(messages.forms.saved(m.title));
+      // Close and reopen: the new form must start from the ETag the last save returned.
+      fireEvent.click(screen.getByRole('button', { name: messages.common.close }));
+    }
+
+    expect(screen.queryByText(messages.conflict.title)).toBeNull();
+    expect(api.callsTo('PUT', resumePath).map((call) => call.headers.get('If-Match'))).toEqual([
+      '"00000001"',
+      '"00000002"',
+      '"00000003"',
+    ]);
+    const list = queryClient.getQueryData<ResumeListPage>(resumeKeys.list(1));
+    expect(list?.items?.[0]).toMatchObject({ eTag: '"00000004"', title: 'Üçüncü' });
   });
 
   it('keeps the typed text after a 412, never overwrites, and loads the new version only after confirmation', async () => {
@@ -250,6 +294,47 @@ describe('unsaved changes', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: messages.resumes.title })).toBeTruthy();
     expect(window.location.pathname).toBe('/app/resumes');
+  });
+
+  it('asks before signing out with unsaved changes, and signs out only after confirmation', async () => {
+    const api = serveApi({
+      ...signedInRoutes,
+      [`GET ${editorPath}`]: () => json(200, editor()),
+      'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+    renderApp(`/app/resumes/${id}`);
+    const title = await openMain();
+    fireEvent.change(title, { target: { value: 'Yarım kalan' } });
+
+    fireEvent.click(screen.getByRole('button', { name: messages.nav.signOut }));
+    let dialog = await screen.findByRole('alertdialog', { name: messages.unsaved.title });
+    fireEvent.click(within(dialog).getByRole('button', { name: messages.unsaved.signOutStay }));
+    expect(api.callsTo('POST', '/api/auth/logout')).toHaveLength(0);
+    expect(screen.getByLabelText<HTMLInputElement>(m.resumeTitle).value).toBe('Yarım kalan');
+
+    fireEvent.click(screen.getByRole('button', { name: messages.nav.signOut }));
+    dialog = await screen.findByRole('alertdialog', { name: messages.unsaved.title });
+    fireEvent.click(within(dialog).getByRole('button', { name: messages.unsaved.signOutConfirm }));
+
+    // Signed out and on the sign-in page; the page blocker does not get in the way.
+    expect(await screen.findByRole('heading', { level: 1, name: messages.login.title })).toBeTruthy();
+    expect(api.callsTo('POST', '/api/auth/logout')).toHaveLength(1);
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('signs out at once when nothing is unsaved', async () => {
+    const api = serveApi({
+      ...signedInRoutes,
+      [`GET ${editorPath}`]: () => json(200, editor()),
+      'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+    renderApp(`/app/resumes/${id}`);
+    await openMain();
+
+    fireEvent.click(screen.getByRole('button', { name: messages.nav.signOut }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: messages.login.title })).toBeTruthy();
+    expect(api.callsTo('POST', '/api/auth/logout')).toHaveLength(1);
   });
 
   it('asks the browser to confirm closing the tab only while there are unsaved changes', async () => {

@@ -248,6 +248,58 @@ describe('AuthSession', () => {
     },
   );
 
+  describe('when the refresh brings back a different user', () => {
+    const other = { id: 'u2', firstName: 'Başka', lastName: 'Kişi', email: 'baska@example.test' };
+    const authAs = (token: string, who: typeof user) =>
+      new Response(JSON.stringify({ accessToken: token, expiresAt: '2030-01-01T00:00:00Z', user: who }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+
+    function setup(secondUser: typeof user) {
+      let refreshes = 0;
+      const api = fakeApi({
+        '/api/auth/refresh': () => (++refreshes === 1 ? authAs(tokenA, user) : authAs(tokenB, secondUser)),
+        '/api/resumes/r1': () => problem(401, 'unauthorized'),
+      });
+      return { api, ...createSession(api.fetchFn) };
+    }
+
+    it('does not replay a write as the other user', async () => {
+      const { api, session } = setup(other);
+      await session.restore();
+
+      const response = await session.authorizedFetch('/api/resumes/r1', { method: 'PUT', body: '{}' });
+
+      expect(response.status).toBe(401);
+      const writes = api.callsTo('/api/resumes/r1');
+      expect(writes).toHaveLength(1);
+      expect(bearer(writes[0]?.init)).toBe(`Bearer ${tokenA}`);
+      expect(session.getState()).toEqual({ status: 'signed-in', user: other });
+    });
+
+    it('still replays a write for the same user', async () => {
+      const { api, session } = setup(user);
+      await session.restore();
+
+      await session.authorizedFetch('/api/resumes/r1', { method: 'DELETE' });
+
+      expect(api.callsTo('/api/resumes/r1').map((call) => bearer(call.init))).toEqual([
+        `Bearer ${tokenA}`,
+        `Bearer ${tokenB}`,
+      ]);
+    });
+
+    it('replays a read for the new user, since it changes nothing', async () => {
+      const { api, session } = setup(other);
+      await session.restore();
+
+      await session.authorizedFetch('/api/resumes/r1');
+
+      expect(api.callsTo('/api/resumes/r1')).toHaveLength(2);
+    });
+  });
+
   it('shares one refresh between concurrent 401s', async () => {
     let refreshes = 0;
     const tokens = new Map<string, number>();

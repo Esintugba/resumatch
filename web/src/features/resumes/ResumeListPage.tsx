@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router';
 import { describeError } from '../../api/describeError';
 import { usePageHeading } from '../../components/usePageTitle';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { ButtonLink } from '../../components/ui/ButtonLink';
 import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import text from '../../components/ui/Text.module.css';
+import { cx } from '../../components/ui/cx';
 import { TextField } from '../../components/ui/TextField';
 import { applyProblem } from '../../forms/problems';
 import { messages } from '../../i18n';
@@ -42,6 +44,10 @@ export function ResumeListPage() {
   }
 
   const items = list.data?.items ?? [];
+  // Archived resumes go under their own heading, below the active ones.
+  const active = items.filter((item) => !item.isArchived);
+  const archived = items.filter((item) => item.isArchived);
+  const archiveHeadingId = useId();
   const totalPages = Number(list.data?.totalPages ?? 0);
 
   return (
@@ -79,47 +85,28 @@ export function ResumeListPage() {
       )}
 
       {list.isSuccess && items.length === 0 && <p className={styles.empty}>{t.empty}</p>}
+      {list.isSuccess && items.length > 0 && active.length === 0 && <p className={styles.empty}>{t.noActive}</p>}
 
-      {items.length > 0 && (
-        <ul className={styles.list} aria-label={t.listLabel}>
-          {items.map((item) => {
-            const title = item.title ?? '';
-            const href = `/app/resumes/${encodeURIComponent(item.id ?? '')}`;
-            return (
-              <li key={item.id} className={styles.item}>
-                <div>
-                  <h2 className={styles.itemTitle}>
-                    <Link to={href}>{title}</Link>
-                  </h2>
-                  <p className={styles.meta}>
-                    {item.professionalTitle && <span>{item.professionalTitle}</span>}
-                    <span>{t.updatedAt(formatDate(item.updatedAt ?? item.createdAt))}</span>
-                    {item.isMasterResume && <span className={styles.badge}>{t.master}</span>}
-                    {item.isArchived && <span className={styles.badge}>{t.archived}</span>}
-                  </p>
-                </div>
-                <div className={styles.actions}>
-                  <Link to={href} className={styles.edit} aria-label={`${messages.common.edit}: ${title}`}>
-                    {messages.common.edit}
-                  </Link>
-                  {!item.isArchived && (
-                    <Button
-                      tone="secondary"
-                      disabled={archive.isPending}
-                      aria-label={`${t.archive}: ${title}`}
-                      onClick={() => {
-                        setNotice(null);
-                        setToArchive(item);
-                      }}
-                    >
-                      {archive.isPending && archive.variables === item.id ? t.archiving : t.archive}
-                    </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+      {active.length > 0 && (
+        <ResumeCards
+          items={active}
+          label={t.listLabel}
+          headingLevel={2}
+          archiving={archive.isPending ? archive.variables : null}
+          onArchive={(item) => {
+            setNotice(null);
+            setToArchive(item);
+          }}
+        />
+      )}
+
+      {archived.length > 0 && (
+        <section className={styles.archive} aria-labelledby={archiveHeadingId}>
+          <h2 id={archiveHeadingId} className={styles.archiveHeading}>
+            {t.archiveSection}
+          </h2>
+          <ResumeCards items={archived} label={t.archivedListLabel} headingLevel={3} archiving={null} />
+        </section>
       )}
 
       {totalPages > 1 && (
@@ -159,6 +146,61 @@ export function ResumeListPage() {
         />
       )}
     </Card>
+  );
+}
+
+interface ResumeCardsProps {
+  items: ResumeListItem[];
+  label: string;
+  headingLevel: 2 | 3;
+  /** The id being archived, which shows its progress. */
+  archiving: string | null;
+  /** Absent for archived resumes, which cannot be archived again. */
+  onArchive?: (item: ResumeListItem) => void;
+}
+
+/** Resume cards. Actions sit in fixed columns so they line up from card to card. */
+function ResumeCards({ items, label, headingLevel, archiving, onArchive }: ResumeCardsProps) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3';
+  return (
+    <ul className={styles.list} aria-label={label}>
+      {items.map((item) => {
+        const title = item.title ?? '';
+        const href = `/app/resumes/${encodeURIComponent(item.id ?? '')}`;
+        return (
+          <li key={item.id} className={cx(styles.item, item.isArchived && styles.archived)}>
+            <div>
+              <Heading className={styles.itemTitle}>
+                <Link to={href}>{title}</Link>
+              </Heading>
+              <p className={styles.meta}>
+                {item.professionalTitle && <span>{item.professionalTitle}</span>}
+                <span>{t.updatedAt(formatDate(item.updatedAt ?? item.createdAt))}</span>
+                {item.isMasterResume && <span className={styles.badge}>{t.master}</span>}
+                {item.isArchived && <span className={styles.badge}>{t.archived}</span>}
+              </p>
+            </div>
+            <div className={styles.actions}>
+              <ButtonLink to={href} aria-label={`${messages.common.edit}: ${title}`}>
+                {messages.common.edit}
+              </ButtonLink>
+              {onArchive && (
+                <Button
+                  tone="secondary"
+                  disabled={archiving !== null}
+                  aria-label={`${t.archive}: ${title}`}
+                  onClick={() => {
+                    onArchive(item);
+                  }}
+                >
+                  {archiving === item.id ? t.archiving : t.archive}
+                </Button>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

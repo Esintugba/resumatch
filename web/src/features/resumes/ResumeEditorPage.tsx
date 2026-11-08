@@ -2,6 +2,7 @@ import { useCallback, useState, type ComponentType } from 'react';
 import { Link, useParams } from 'react-router';
 import { describeError } from '../../api/describeError';
 import { ApiError } from '../../api/http';
+import { useReportUnsavedChanges } from '../../components/unsavedChanges';
 import { usePageHeading } from '../../components/usePageTitle';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -45,6 +46,7 @@ export function ResumeEditorPage() {
   // The section a dirty form is waiting to give way to; null means "close".
   const [pendingOpen, setPendingOpen] = useState<string | null | undefined>(undefined);
   const blocker = useUnsavedChangesGuard(dirty);
+  useReportUnsavedChanges(dirty);
   const onDirtyChange = useCallback((value: boolean) => {
     setDirty(value);
   }, []);

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { apiJson } from '../../api/http';
 import type { components } from '../../api/schema';
 import { useSession } from '../../auth/AuthContext';
@@ -14,6 +14,58 @@ export type ContactRequest = Schemas['ResumeContactRequest'];
 export type ContactResponse = Schemas['ResumeContactResponse'];
 
 export const resumeListPageSize = 20;
+
+/**
+ * Fields stored on the resume row. They share one ETag (the row version): a
+ * save of any of them changes the ETag every other form editing one of them
+ * must send as If-Match. PR 8b: the skills section's "not in the catalog"
+ * note is `unlistedSkillsNote`, so it shares this ETag with the main fields.
+ * Contact, experience, education and skills are separate rows.
+ */
+export const fieldsSharingResumeETag = [
+  'title',
+  'professionalTitle',
+  'summary',
+  'unlistedSkillsNote',
+  'templateKey',
+  'targetRole',
+  'isArchived',
+] as const;
+
+/**
+ * Writes the ETag (and changed fields) a save returned into every cached copy
+ * of the resume, so the next form the user opens sends it and their own save
+ * never comes back as 412.
+ */
+export function rememberResumeETag(
+  client: QueryClient,
+  id: string,
+  eTag: string,
+  changes: Partial<ResumeEditor> = {},
+): void {
+  client.setQueryData<ResumeEditor>(resumeKeys.editor(id), (current) =>
+    current ? { ...current, ...changes, eTag } : current,
+  );
+  client.setQueriesData<ResumeListPage>({ queryKey: [...resumeKeys.all, 'list'] }, (current) =>
+    current?.items
+      ? {
+          ...current,
+          items: current.items.map((item) =>
+            item.id === id ? { ...item, ...pickListFields(changes), eTag } : item,
+          ),
+        }
+      : current,
+  );
+}
+
+function pickListFields(changes: Partial<ResumeEditor>): Partial<ResumeListItem> {
+  const picked: Partial<ResumeListItem> = {};
+  if (changes.title !== undefined) picked.title = changes.title;
+  if (changes.professionalTitle !== undefined) picked.professionalTitle = changes.professionalTitle;
+  if (changes.targetRole !== undefined) picked.targetRole = changes.targetRole;
+  if (changes.updatedAt !== undefined) picked.updatedAt = changes.updatedAt;
+  return picked;
+}
 
 export const resumeKeys = {
   all: ['resumes'] as const,
@@ -84,16 +136,13 @@ export function useUpdateResumeMain(id: string) {
         ifMatch: eTag,
       }),
     onSuccess: (saved) => {
-      client.setQueryData<ResumeEditor>(resumeKeys.editor(id), (current) =>
-        current
-          ? {
-              ...current,
-              ...pickMain(saved),
-              ...(saved.eTag === undefined ? {} : { eTag: saved.eTag }),
-              ...(saved.updatedAt === undefined ? {} : { updatedAt: saved.updatedAt }),
-            }
-          : current,
-      );
+      if (saved.eTag !== undefined) {
+        rememberResumeETag(client, id, saved.eTag, {
+          ...pickMain(saved),
+          ...(saved.updatedAt === undefined ? {} : { updatedAt: saved.updatedAt }),
+        });
+      }
+      // The list order depends on the update time, so it is fetched again too.
       return client.invalidateQueries({ queryKey: [...resumeKeys.all, 'list'] });
     },
   });

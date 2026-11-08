@@ -116,7 +116,11 @@ test('creates, edits and saves a resume, resolves a two-tab conflict, guards uns
   const archiveDialog = page.getByRole('alertdialog', { name: `“${second}” arşivlensin mi?` });
   await archiveDialog.getByRole('button', { name: 'Arşivle' }).click();
   await expect(page.getByRole('status').filter({ hasText: `“${second}” arşivlendi.` })).toBeVisible();
-  const archived = list.getByRole('listitem').filter({ hasText: second });
+  // Archived resumes move to their own section below the active ones.
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  const archiveSection = page.getByRole('region', { name: 'Arşiv' });
+  const archived = archiveSection.getByRole('list', { name: 'Arşivlenen özgeçmişler' }).getByRole('listitem');
+  await expect(archived).toHaveCount(1);
   await expect(archived.getByText('Arşivlendi')).toBeVisible();
   await expect(archived.getByRole('button', { name: /Arşivle/ })).toHaveCount(0);
   await screenshots(page, testInfo, 'list');
