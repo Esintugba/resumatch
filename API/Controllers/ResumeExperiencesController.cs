@@ -34,6 +34,7 @@ public sealed class ResumeExperiencesController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ExperienceResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ExperienceResponse>> Create(
         Guid resumeId,
         [FromBody] CreateExperienceRequest request,

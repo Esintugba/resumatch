@@ -1,4 +1,5 @@
 using Api.Application.JobParsing;
+using Api.Infrastructure.Hosting;
 using Api.Infrastructure.JobParsing.OpenAI;
 using Api.Infrastructure.JobParsing.OpenAI.Contracts;
 using Microsoft.AspNetCore.Hosting;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using API.Tests.Integration.Infrastructure;
@@ -52,6 +54,11 @@ public sealed class ResuMatchWebApplicationFactory
         {
             SetEnvironment("DOTNET_ENVIRONMENT", _environmentName);
             SetEnvironment("ASPNETCORE_ENVIRONMENT", _environmentName);
+            // Program reads settings before the host is built, so this must be
+            // an environment variable rather than in-memory configuration.
+            SetEnvironment(
+                UserSecretsConfiguration.IgnoreSwitch.Replace(":", "__", StringComparison.Ordinal),
+                "true");
             SetEnvironment(
                 "ConnectionStrings__DefaultConnection",
                 _fixture.ConnectionString);
@@ -158,6 +165,26 @@ public sealed class ResuMatchWebApplicationFactory
         {
             builder.ConfigureTestServices(_configureTestServices);
         }
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+        try
+        {
+            // Checked on the built host, whose configuration includes every
+            // source the application added before the factory's own.
+            TestConfigurationSources.Verify(
+                host.Services.GetRequiredService<IConfiguration>(),
+                _environmentName);
+        }
+        catch
+        {
+            host.Dispose();
+            throw;
+        }
+
+        return host;
     }
 
     public const string UseConfiguredJobParsingAvailability =

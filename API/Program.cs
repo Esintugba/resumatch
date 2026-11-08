@@ -49,6 +49,8 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+// Before any setting is read: tests must never see a developer's user secrets.
+Api.Infrastructure.Hosting.UserSecretsConfiguration.RemoveWhenRequested(builder.Configuration);
 
 var requestLimitSection = builder.Configuration.GetSection(
     RequestLimitOptions.SectionName);
@@ -773,7 +775,11 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
-    options.AddSchemaTransformer<ApiContractSchemaTransformer>());
+{
+    options.AddSchemaTransformer<ApiContractSchemaTransformer>();
+    options.AddOperationTransformer<ErrorResponseOperationTransformer>();
+    options.AddDocumentTransformer<ErrorResponseDocumentTransformer>();
+});
 
 var app = builder.Build();
 
