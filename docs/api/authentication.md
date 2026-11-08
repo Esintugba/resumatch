@@ -156,7 +156,9 @@ server: {
 
 `/health` is proxied for the cold start check, which calls `/health/live`; it carries no cookie or token. `strictPort` keeps Vite on 5173, the only origin the API allows.
 
-The browser then talks only to `http://localhost:5173`, and the cookie is stored for that host. `appsettings.Development.json` already allows the origin `http://localhost:5173` with credentials; the browser's `Origin` stays `http://localhost:5173` through the proxy. Chrome, Edge and Firefox accept `Secure` and `__Host-` cookies on `http://localhost`; Safari has not been verified.
+The browser then talks only to `http://localhost:5173`, and the cookie is stored for that host. `appsettings.Development.json` already allows the origin `http://localhost:5173` with credentials; the browser's `Origin` stays `http://localhost:5173` through the proxy. Chrome, Edge and Firefox accept `Secure` and `__Host-` cookies on `http://localhost`.
+
+**WebKit over HTTP does not work.** Playwright's WebKit (27.2, Windows) stores `Secure` cookies set over `http://localhost` but never sends them back: of `plain`, `SameSite=Strict`, `Secure`, `Secure; SameSite=Strict` and `__Host-` cookies, only the two without `Secure` returned. The refresh cookie must be `Secure` because of its `__Host-` prefix, so in WebKit sign-in works but a reload, a new tab or a refresh signs the user out. Real Safari on macOS has not been checked. Testing WebKit or Safari locally needs HTTPS for the Vite server. `scripts/run-e2e-fullstack.sh` marks the affected WebKit test as an expected failure.
 
 ## When the domain is ready
 

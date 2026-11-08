@@ -20,7 +20,7 @@ Yeni oturum buradan başlar. Ayrıntılı plan [frontend-roadmap.md](frontend-ro
 - **E-posta:** Gerçek gönderim (`mail.alanadi.com`) alan adına bağlı, PR 19'a kalır. PR 11 yerelde sahte göndericiyle geliştirilip test edilir.
 - **Canlıda kimlik bilgisi:** `HttpSecurity__AllowCredentials` alan adı gelene kadar kapalı. Bu sürede refresh ve logout canlıda 403 döner, bu beklenen durumdur. Cookie akışı yerelde Vite proxy ile test edilir.
 - **Hukuk:** Veri sorumlusu yapısı ve metinler avukat görüşüne bağlı (beta çıkış şartı).
-- **Doğrulanmamış:** Safari'de `http://localhost` üzerinde `Secure` cookie davranışı.
+- **WebKit ve yerel HTTP:** Playwright WebKit (27.2, Windows) `http://localhost` üzerinde `Secure` cookie'yi saklıyor ama geri göndermiyor. Refresh cookie'si `__Host-` olduğu için `Secure` olmak zorunda; WebKit'te giriş çalışıyor, yenileme ve yeni sekme oturumu kapatıyor. Gerçek Safari (macOS) denenmedi. Yerelde WebKit veya Safari testi için Vite'ın HTTPS ile çalışması gerekir (açık karar). Ayrıntı: [authentication.md](../api/authentication.md#local-development).
 
 ## Merge politikası
 

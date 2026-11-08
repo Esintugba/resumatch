@@ -85,6 +85,7 @@ Vite proxies `/api` and `/health` to the API's `http` profile on `http://localho
 | `npm test` | Vitest and React Testing Library |
 | `npm run build` | Production build into `web/dist` |
 | `npm run e2e` | Playwright in Chromium and WebKit against the production build. Run `npx playwright install chromium webkit` once. API calls are stubbed. |
+| `bash scripts/run-e2e-fullstack.sh` | Sign-in, reload, new tab and sign-out against a real API and a throwaway PostgreSQL container (Docker). Run from the repository root. |
 
 ### API contract
 
