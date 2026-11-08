@@ -30,6 +30,10 @@ export function EditorSection({ title, open, dirty, onToggle, summary, children 
         >
           {title}
           {open && dirty && <span className={styles.dirty}>{messages.unsaved.title}</span>}
+          {/* Decoration only; kept out of the button's accessible name. */}
+          <span aria-hidden="true" className={styles.chevron}>
+            {open ? '▾' : '▸'}
+          </span>
         </button>
       </h2>
       <div id={`${id}-body`} className={styles.body}>

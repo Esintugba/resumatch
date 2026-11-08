@@ -29,13 +29,8 @@
   cursor: pointer;
 }
 
-.toggle::after {
-  content: '▸';
+.chevron {
   color: var(--color-muted);
-}
-
-.toggle[aria-expanded='true']::after {
-  content: '▾';
 }
 
 .dirty {

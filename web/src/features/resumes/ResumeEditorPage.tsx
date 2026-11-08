@@ -15,7 +15,10 @@ import { EditorSection } from './editor/EditorSection';
 import { useUnsavedChangesGuard } from './editor/useUnsavedChangesGuard';
 import styles from './ResumeEditorPage.module.css';
 import { ContactForm, ContactSummary } from './sections/ContactSection';
+import { EducationSection, EducationSummary } from './sections/EducationSection';
+import { ExperienceSection, ExperienceSummary } from './sections/ExperienceSection';
 import { MainInfoForm, MainInfoSummary } from './sections/MainInfoSection';
+import { SkillsSection, SkillsSummary } from './sections/SkillsSection';
 
 export interface SectionFormProps {
   resume: ResumeEditor;
@@ -30,10 +33,13 @@ interface SectionDefinition {
   Form: ComponentType<SectionFormProps>;
 }
 
-/** The editor's sections, in order. PR 8b adds experience, education and skills here. */
+/** The editor's sections, in order. Further sections (projects, certificates, languages, links) go here. */
 const sections: SectionDefinition[] = [
   { id: 'main', title: messages.editor.main.title, Summary: MainInfoSummary, Form: MainInfoForm },
   { id: 'contact', title: messages.editor.contact.title, Summary: ContactSummary, Form: ContactForm },
+  { id: 'experience', title: messages.experience.title, Summary: ExperienceSummary, Form: ExperienceSection },
+  { id: 'education', title: messages.education.title, Summary: EducationSummary, Form: EducationSection },
+  { id: 'skills', title: messages.skills.title, Summary: SkillsSummary, Form: SkillsSection },
 ];
 
 export function ResumeEditorPage() {
