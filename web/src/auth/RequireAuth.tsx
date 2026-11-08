@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
+import text from '../components/ui/Text.module.css';
 import { messages } from '../i18n';
 import { useSessionState } from './AuthContext';
 
@@ -10,7 +11,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (state.status === 'unknown') {
     return (
-      <p role="status" className="muted">
+      <p role="status" className={text.muted}>
         {messages.session.checking}
       </p>
     );

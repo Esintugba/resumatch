@@ -1,79 +1,13 @@
-import type { APIRequestContext, Page, TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { readableStorage, refreshCookie, signIn, welcome } from './helpers';
 
 // Runs through scripts/run-e2e-fullstack.sh: real API, throwaway database,
 // web app over HTTPS (self-signed). Every user is made up for the run.
 
-const api = 'http://localhost:5252';
-const refreshCookie = '__Host-resumatch_refresh';
-const password = 'E2e-Parola-2026!';
-const welcome = 'Hoş geldiniz, Deneme';
 
 // Over plain HTTP, Playwright's WebKit stores Secure cookies but never sends
 // them back, so these tests use HTTPS (see docs/api/authentication.md).
 const signOutMarkerKey = 'resumatch.signOutPending';
-
-const viewports = {
-  desktop: { width: 1280, height: 800 },
-  mobile: { width: 360, height: 740 },
-} as const;
-
-async function screenshots(page: Page, testInfo: TestInfo, name: string) {
-  for (const [size, viewport] of Object.entries(viewports)) {
-    await page.setViewportSize(viewport);
-    const file = testInfo.outputPath(`${name}-${size}-${testInfo.project.name}.png`);
-    await page.screenshot({ path: file, fullPage: true });
-    await testInfo.attach(`${name}-${size}`, { path: file, contentType: 'image/png' });
-  }
-  await page.setViewportSize(viewports.desktop);
-}
-
-/** Everything a script on the page could read, to prove the access token is in none of it. */
-async function readableStorage(page: Page) {
-  return page.evaluate(async () => {
-    const dump = (storage: Storage) =>
-      Array.from({ length: storage.length }, (_, index) => {
-        const key = storage.key(index) ?? '';
-        return `${key}=${storage.getItem(key) ?? ''}`;
-      });
-    let databases: string[];
-    try {
-      databases = (await indexedDB.databases()).map((database) => database.name ?? '');
-    } catch {
-      databases = ['(indexedDB.databases() not supported)'];
-    }
-    return {
-      localStorage: dump(localStorage),
-      sessionStorage: dump(sessionStorage),
-      cookie: document.cookie,
-      databases,
-    };
-  });
-}
-
-/** Registers a made-up user through the API (the registration screen comes in PR 10) and signs in through the form. */
-async function signIn(page: Page, request: APIRequestContext, testInfo: TestInfo, shoot = false) {
-  const email = `e2e-${testInfo.project.name}-${String(Date.now())}@example.test`;
-  const registered = await request.post(`${api}/api/auth/register`, {
-    data: { firstName: 'Deneme', lastName: 'Kullanıcı', email, password },
-  });
-  expect(registered.status()).toBe(201);
-
-  await page.goto('/');
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Giriş yap' })).toBeVisible();
-  if (shoot) await screenshots(page, testInfo, 'login');
-
-  await page.getByLabel('E-posta').fill(email);
-  await page.getByLabel('Parola').fill(password);
-  const loginResponse = page.waitForResponse('**/api/auth/login');
-  await page.getByRole('button', { name: 'Giriş yap' }).click();
-  const login = await loginResponse;
-  expect(login.status()).toBe(200);
-  await expect(page.getByRole('heading', { level: 1, name: welcome })).toBeVisible();
-  if (shoot) await screenshots(page, testInfo, 'home');
-  return login;
-}
 
 test('signs in, and keeps the access token out of every script-readable store', async ({
   page,

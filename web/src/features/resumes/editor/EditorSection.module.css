@@ -1,0 +1,93 @@
+.section {
+  border-top: 1px solid var(--color-border);
+}
+
+.section:last-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-3) 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.toggle::after {
+  content: '▸';
+  color: var(--color-muted);
+}
+
+.toggle[aria-expanded='true']::after {
+  content: '▾';
+}
+
+.dirty {
+  margin-left: auto;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-warning);
+}
+
+.body {
+  padding: 0 0 var(--space-6);
+}
+
+.summary {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: var(--space-1) var(--space-4);
+}
+
+.row {
+  display: contents;
+}
+
+.summary dt {
+  color: var(--color-muted);
+}
+
+.summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+  /* The note goes under the title instead of squeezing it. */
+  .dirty {
+    order: 3;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .summary {
+    grid-template-columns: 1fr;
+  }
+
+  .summary dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+.saveBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

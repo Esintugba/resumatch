@@ -4,6 +4,11 @@ import type { ApiProblem } from '../../api/problem';
 import { useSession, useSessionState } from '../../auth/AuthContext';
 import { safeReturnPath } from '../../auth/RequireAuth';
 import { usePageHeading } from '../../components/usePageTitle';
+import { Alert } from '../../components/ui/Alert';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import text from '../../components/ui/Text.module.css';
+import field from '../../components/ui/TextField.module.css';
 import { messages } from '../../i18n';
 
 type Field = 'email' | 'password';
@@ -98,31 +103,31 @@ export function LoginPage() {
   const lockMessage = locked ? t.rateLimited(lockSeconds) : lockedUntil !== null ? t.rateLimitOver : null;
 
   return (
-    <section className="card" aria-labelledby={ids.title}>
+    <Card aria-labelledby={ids.title}>
       <h1 id={ids.title} ref={heading} tabIndex={-1}>
         {t.title}
       </h1>
-      <p className="muted">{t.intro}</p>
+      <p className={text.muted}>{t.intro}</p>
 
       {state.status === 'signed-out' && state.signOutIncomplete && (
-        <div className="notice" role="status">
+        <Alert tone="warning" role="status">
           <p>{t.signOutIncomplete}</p>
-        </div>
+        </Alert>
       )}
 
       {(formError !== null || lockMessage !== null) && (
-        <div ref={summary} className="alert" role="alert" tabIndex={-1}>
-          <p className="alert-title">{t.errorSummary}</p>
+        <Alert ref={summary} tone="error" role="alert" title={t.errorSummary}>
           {formError !== null && <p>{formError}</p>}
           {lockMessage !== null && <p>{lockMessage}</p>}
-        </div>
+        </Alert>
       )}
 
       <form noValidate onSubmit={(event) => void onSubmit(event)}>
-        <div className="field">
-          <label htmlFor={ids.email}>{t.email}</label>
+        <div className={field.field}>
+          <label htmlFor={ids.email} className={field.label}>{t.email}</label>
           <input
             id={ids.email}
+            className={field.input}
             name="email"
             type="email"
             inputMode="email"
@@ -136,16 +141,17 @@ export function LoginPage() {
             aria-describedby={fieldErrors.email ? ids.emailError : undefined}
           />
           {fieldErrors.email && (
-            <p id={ids.emailError} className="field-error">
+            <p id={ids.emailError} className={field.error}>
               {fieldErrors.email}
             </p>
           )}
         </div>
 
-        <div className="field">
-          <label htmlFor={ids.password}>{t.password}</label>
+        <div className={field.field}>
+          <label htmlFor={ids.password} className={field.label}>{t.password}</label>
           <input
             id={ids.password}
+            className={field.input}
             name="password"
             type="password"
             autoComplete="current-password"
@@ -158,17 +164,17 @@ export function LoginPage() {
             aria-describedby={fieldErrors.password ? ids.passwordError : undefined}
           />
           {fieldErrors.password && (
-            <p id={ids.passwordError} className="field-error">
+            <p id={ids.passwordError} className={field.error}>
               {fieldErrors.password}
             </p>
           )}
         </div>
 
-        <button type="submit" className="primary" disabled={pending || locked} aria-busy={pending || undefined}>
+        <Button type="submit" tone="primary" block disabled={pending || locked} aria-busy={pending || undefined}>
           {pending ? t.submitting : locked ? t.waitCountdown(secondsLeft) : t.submit}
-        </button>
+        </Button>
       </form>
-    </section>
+    </Card>
   );
 }
 

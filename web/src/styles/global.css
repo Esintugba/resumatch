@@ -1,4 +1,5 @@
-/* Design tokens. Screens use these variables, never raw values. */
+/* Design tokens and base element styles only. Component styles live in
+   CSS Modules next to their components. */
 :root {
   --color-bg: #f6f7f9;
   --color-surface: #ffffff;
@@ -8,10 +9,13 @@
   --color-primary: #1f5fbf;
   --color-primary-text: #ffffff;
   --color-danger: #b42318;
+  --color-danger-text: #ffffff;
   --color-danger-bg: #fef3f2;
-  --color-focus: #0b57d0;
   --color-warning: #9a6700;
   --color-warning-bg: #fff8c5;
+  --color-success: #1a7f37;
+  --color-success-bg: #dafbe1;
+  --color-focus: #0b57d0;
   --radius: 8px;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -32,10 +36,13 @@
     --color-primary: #6ea8fe;
     --color-primary-text: #0f1216;
     --color-danger: #ff8a80;
+    --color-danger-text: #0f1216;
     --color-danger-bg: #2a1716;
-    --color-focus: #9ec5ff;
     --color-warning: #d29922;
     --color-warning-bg: #2b2111;
+    --color-success: #3fb950;
+    --color-success-bg: #12261a;
+    --color-focus: #9ec5ff;
   }
 }
 
@@ -54,148 +61,23 @@ body {
   background: var(--color-bg);
 }
 
+a {
+  color: var(--color-primary);
+}
+
 :focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
-h1:focus {
+/* Headings get focus on navigation for screen readers, without a ring. */
+h1:focus,
+h2:focus {
   outline: none;
-}
-
-.skip-link {
-  position: absolute;
-  left: var(--space-2);
-  top: -3rem;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: var(--radius);
-}
-
-.skip-link:focus {
-  top: var(--space-2);
-}
-
-.site-header {
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.brand {
-  font-weight: 700;
-  font-size: 1.125rem;
-}
-
-.site-main {
-  padding: var(--space-6) var(--space-4);
-}
-
-.card {
-  max-width: 26rem;
-  margin: 0 auto;
-  padding: var(--space-6);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.card h1 {
-  margin: 0 0 var(--space-2);
-  font-size: 1.5rem;
-  line-height: 1.25;
-}
-
-.muted {
-  color: var(--color-muted);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-bottom: var(--space-4);
 }
 
 label {
   font-weight: 600;
-}
-
-input {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3);
-  font: inherit;
-  color: inherit;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-input[aria-invalid='true'] {
-  border-color: var(--color-danger);
-}
-
-.field-error {
-  margin: 0;
-  color: var(--color-danger);
-  font-size: 0.875rem;
-}
-
-.alert {
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  color: var(--color-text);
-  background: var(--color-danger-bg);
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius);
-}
-
-.alert p {
-  margin: 0;
-}
-
-.notice {
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning);
-  border-radius: var(--radius);
-}
-
-.notice p {
-  margin: 0;
-}
-
-.alert-title {
-  font-weight: 700;
-}
-
-button {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  font: inherit;
-  font-weight: 600;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-button.primary {
-  width: 100%;
-  color: var(--color-primary-text);
-  background: var(--color-primary);
-  border: 1px solid var(--color-primary);
-}
-
-button.secondary {
-  color: var(--color-text);
-  background: transparent;
-  border: 1px solid var(--color-border);
 }
 
 @media (prefers-reduced-motion: reduce) {

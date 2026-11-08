@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { useServerWake, type ServerWakeOptions } from '../api/serverWake';
 import { messages } from '../i18n';
+import { Button } from './ui/Button';
+import { Card } from './ui/Card';
+import { Frame } from './ui/Frame';
+import text from './ui/Text.module.css';
 
 interface ServerWakeGateProps extends ServerWakeOptions {
   children: ReactNode;
@@ -8,7 +12,7 @@ interface ServerWakeGateProps extends ServerWakeOptions {
 
 const t = messages.serverWake;
 
-/** Renders its children once the API answers; until then, the cold start message. Gives up after 90 s. */
+/** Renders its children once the API answers; until then, the cold start message in the page frame. Gives up after 90 s. */
 export function ServerWakeGate({ children, ...options }: ServerWakeGateProps) {
   const { status, elapsedSeconds, retry } = useServerWake(options);
 
@@ -19,19 +23,23 @@ export function ServerWakeGate({ children, ...options }: ServerWakeGateProps) {
       return null;
     case 'waking':
       return (
-        <section className="card">
+        <Frame>
+          <Card>
           <p role="status">{t.waking}</p>
-          <p className="muted">{t.elapsed(elapsedSeconds)}</p>
-        </section>
+          <p className={text.muted}>{t.elapsed(elapsedSeconds)}</p>
+          </Card>
+        </Frame>
       );
     case 'unreachable':
       return (
-        <section className="card">
+        <Frame>
+          <Card>
           <p role="alert">{t.unreachable}</p>
-          <button type="button" className="primary" onClick={retry}>
+          <Button tone="primary" onClick={retry}>
             {t.retry}
-          </button>
-        </section>
+          </Button>
+          </Card>
+        </Frame>
       );
   }
 }
