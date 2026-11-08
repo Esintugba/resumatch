@@ -174,6 +174,7 @@ public static class ResumeMappings
         return new ResumeContactResponse
         {
             Id = contact.Id,
+            ETag = EntityTagCodec.Format(contact.Version),
             FirstName = contact.FirstName,
             LastName = contact.LastName,
             Email = contact.Email,

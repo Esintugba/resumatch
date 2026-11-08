@@ -99,15 +99,49 @@ public sealed class ResumesController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Archives the resume. Idempotent: an archived resume is returned
+    /// unchanged. Otherwise If-Match is required (428 without, 412 when stale).
+    /// </summary>
     [HttpPatch("{resumeId:guid}/archive")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ResumeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Archive(
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
+    public Task<ActionResult<ResumeResponse>> Archive(
         Guid resumeId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken) =>
+        SetArchived(resumeId, archived: true, ifMatch, cancellationToken);
+
+    /// <summary>
+    /// Takes the resume out of the archive. Idempotent: an active resume is
+    /// returned unchanged. Otherwise If-Match is required (428 without, 412 when stale).
+    /// </summary>
+    [HttpPatch("{resumeId:guid}/unarchive")]
+    [ProducesResponseType(typeof(ResumeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
+    public Task<ActionResult<ResumeResponse>> Unarchive(
+        Guid resumeId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken) =>
+        SetArchived(resumeId, archived: false, ifMatch, cancellationToken);
+
+    private async Task<ActionResult<ResumeResponse>> SetArchived(
+        Guid resumeId,
+        bool archived,
+        string? ifMatch,
         CancellationToken cancellationToken)
     {
-        await _resumeService.ArchiveAsync(resumeId, cancellationToken);
-        return NoContent();
+        var response = await _resumeService.SetArchivedAsync(
+            resumeId,
+            archived,
+            ifMatch,
+            cancellationToken);
+        Response.Headers.ETag = response.ETag;
+        return Ok(response);
     }
 
     [HttpDelete("{resumeId:guid}")]

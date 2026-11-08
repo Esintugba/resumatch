@@ -13,7 +13,7 @@ import { cx } from '../../components/ui/cx';
 import { TextField } from '../../components/ui/TextField';
 import { applyProblem } from '../../forms/problems';
 import { messages } from '../../i18n';
-import { useArchiveResume, useCreateResume, useResumeList, type ResumeListItem } from './api';
+import { useSetArchived, useCreateResume, useResumeList, type ResumeListItem } from './api';
 import styles from './ResumeListPage.module.css';
 
 const t = messages.resumes;
@@ -29,15 +29,18 @@ export function ResumeListPage() {
   const [page, setPage] = useState(1);
   const list = useResumeList(page);
   const [toArchive, setToArchive] = useState<ResumeListItem | null>(null);
-  const archive = useArchiveResume();
+  const archive = useSetArchived();
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
-  async function confirmArchive(item: ResumeListItem) {
+  /** Archives or unarchives with the ETag the list shows; a 412 refreshes the list. */
+  async function setArchived(item: ResumeListItem, archived: boolean) {
     setToArchive(null);
+    setNotice(null);
     if (!item.id) return;
     try {
-      await archive.mutateAsync(item.id);
-      setNotice({ tone: 'success', text: t.archivedDone(item.title ?? '') });
+      await archive.mutateAsync({ id: item.id, eTag: item.eTag ?? '', archived });
+      const title = item.title ?? '';
+      setNotice({ tone: 'success', text: archived ? t.archivedDone(title) : t.unarchivedDone(title) });
     } catch (error) {
       setNotice({ tone: 'error', text: describeError(error) });
     }
@@ -92,7 +95,7 @@ export function ResumeListPage() {
           items={active}
           label={t.listLabel}
           headingLevel={2}
-          archiving={archive.isPending ? archive.variables : null}
+          busy={archive.isPending ? archive.variables.id : null}
           onArchive={(item) => {
             setNotice(null);
             setToArchive(item);
@@ -105,7 +108,13 @@ export function ResumeListPage() {
           <h2 id={archiveHeadingId} className={styles.archiveHeading}>
             {t.archiveSection}
           </h2>
-          <ResumeCards items={archived} label={t.archivedListLabel} headingLevel={3} archiving={null} />
+          <ResumeCards
+            items={archived}
+            label={t.archivedListLabel}
+            headingLevel={3}
+            busy={archive.isPending ? archive.variables.id : null}
+            onUnarchive={(item) => void setArchived(item, false)}
+          />
         </section>
       )}
 
@@ -142,7 +151,7 @@ export function ResumeListPage() {
           onCancel={() => {
             setToArchive(null);
           }}
-          onConfirm={() => void confirmArchive(toArchive)}
+          onConfirm={() => void setArchived(toArchive, true)}
         />
       )}
     </Card>
@@ -153,14 +162,16 @@ interface ResumeCardsProps {
   items: ResumeListItem[];
   label: string;
   headingLevel: 2 | 3;
-  /** The id being archived, which shows its progress. */
-  archiving: string | null;
-  /** Absent for archived resumes, which cannot be archived again. */
+  /** The id being archived or unarchived, which shows its progress. */
+  busy: string | null;
+  /** For active resumes. */
   onArchive?: (item: ResumeListItem) => void;
+  /** For archived resumes. */
+  onUnarchive?: (item: ResumeListItem) => void;
 }
 
 /** Resume cards. Actions sit in fixed columns so they line up from card to card. */
-function ResumeCards({ items, label, headingLevel, archiving, onArchive }: ResumeCardsProps) {
+function ResumeCards({ items, label, headingLevel, busy, onArchive, onUnarchive }: ResumeCardsProps) {
   const Heading = headingLevel === 2 ? 'h2' : 'h3';
   return (
     <ul className={styles.list} aria-label={label}>
@@ -187,13 +198,25 @@ function ResumeCards({ items, label, headingLevel, archiving, onArchive }: Resum
               {onArchive && (
                 <Button
                   tone="secondary"
-                  disabled={archiving !== null}
+                  disabled={busy !== null}
                   aria-label={`${t.archive}: ${title}`}
                   onClick={() => {
                     onArchive(item);
                   }}
                 >
-                  {archiving === item.id ? t.archiving : t.archive}
+                  {busy === item.id ? t.archiving : t.archive}
+                </Button>
+              )}
+              {onUnarchive && (
+                <Button
+                  tone="secondary"
+                  disabled={busy !== null}
+                  aria-label={`${t.unarchive}: ${title}`}
+                  onClick={() => {
+                    onUnarchive(item);
+                  }}
+                >
+                  {busy === item.id ? t.unarchiving : t.unarchive}
                 </Button>
               )}
             </div>

@@ -1,11 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using Api.Application.Common;
+using Api.Application.Common.Concurrency;
 using Api.Application.Common.Exceptions;
 using Api.Application.Common.Interfaces;
 using Api.Application.Mapping;
 using Api.Data;
 using Api.DTOs.Resume;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Api.Application.ResumeContacts;
 
@@ -46,8 +48,11 @@ public sealed class ResumeContactService : IResumeContactService
         return contact.ToResponse();
     }
 
+    private const string ResumeIdUniqueIndexName = "IX_ResumeContacts_ResumeId";
+
     public async Task<ResumeContactUpsertResult> UpsertAsync(
         Guid resumeId,
+        string? ifMatch,
         ResumeContactRequest request,
         CancellationToken cancellationToken)
     {
@@ -69,6 +74,12 @@ public sealed class ResumeContactService : IResumeContactService
             await ResumeOwnershipGuard.EnsureOwnedResumeExistsAsync(
                 _dbContext, resumeId, userId, cancellationToken);
 
+            // A client that holds an ETag expects a contact that is gone now.
+            if (!string.IsNullOrWhiteSpace(ifMatch))
+            {
+                throw new PreconditionFailedException("The resume contact no longer exists.");
+            }
+
             isCreated = true;
             contact = request.ToEntity();
             contact.ResumeId = resumeId;
@@ -76,16 +87,35 @@ public sealed class ResumeContactService : IResumeContactService
         }
         else
         {
+            _dbContext.Entry(contact)
+                .Property(item => item.Version)
+                .OriginalValue = IfMatch.RequireVersion(ifMatch);
             request.ApplyUpdate(contact);
             contact.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            isCreated &&
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: ResumeIdUniqueIndexName
+            })
+        {
+            // Another request created the contact first; this one did not see it.
+            throw new PreconditionFailedException("The resume contact was created by another request.");
+        }
+
         return new ResumeContactUpsertResult(contact.ToResponse(), isCreated);
     }
 
     public async Task DeleteAsync(
         Guid resumeId,
+        string? ifMatch,
         CancellationToken cancellationToken)
     {
         var userId = _currentUserService.GetRequiredUserId();
@@ -101,6 +131,9 @@ public sealed class ResumeContactService : IResumeContactService
             throw new NotFoundException("Resume contact was not found.");
         }
 
+        _dbContext.Entry(contact)
+            .Property(item => item.Version)
+            .OriginalValue = IfMatch.RequireVersion(ifMatch);
         _dbContext.ResumeContacts.Remove(contact);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

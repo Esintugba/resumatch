@@ -354,3 +354,84 @@ describe('unsaved changes', () => {
     });
   });
 });
+
+describe('contact', () => {
+  const contactPath = `/api/resumes/${id}/contact`;
+  const c = messages.editor.contact;
+  const existing = {
+    id: 'c1',
+    eTag: '"00000010"',
+    firstName: 'Deneme',
+    lastName: 'Kişi',
+    email: 'deneme@example.test',
+    phoneNumber: null,
+    city: 'İstanbul',
+    country: 'Türkiye',
+    postalCode: null,
+  };
+
+  async function openContact() {
+    fireEvent.click(await screen.findByRole('button', { name: c.title }));
+    return screen.findByLabelText(c.city);
+  }
+
+  it('creates a new contact without If-Match, then updates it with its new ETag', async () => {
+    let version = 10;
+    const api = serveApi({
+      ...signedInRoutes,
+      [`GET ${editorPath}`]: () => json(200, editor({ contact: null })),
+      [`PUT ${contactPath}`]: (call) =>
+        json(call.headers.get('If-Match') ? 200 : 201, { ...existing, ...(call.body as object), eTag: `"000000${String(++version)}"` }),
+    });
+    renderApp(`/app/resumes/${id}`);
+
+    const city = await openContact();
+    fireEvent.change(city, { target: { value: 'Ankara' } });
+    fireEvent.click(screen.getByRole('button', { name: messages.common.save }));
+    await screen.findByText(messages.forms.saved(c.title));
+    fireEvent.change(city, { target: { value: 'İzmir' } });
+    fireEvent.click(screen.getByRole('button', { name: messages.common.save }));
+    await screen.findByText(messages.forms.saved(c.title));
+
+    expect(api.callsTo('PUT', contactPath).map((call) => call.headers.get('If-Match'))).toEqual([null, '"00000011"']);
+  });
+
+  it('keeps the typed text after a 412 and reloads the contact only after confirmation', async () => {
+    let fresh = false;
+    const api = serveApi({
+      ...signedInRoutes,
+      [`GET ${editorPath}`]: () =>
+        json(200, editor({ contact: fresh ? { ...existing, eTag: '"00000099"', city: 'Bursa' } : existing })),
+      [`PUT ${contactPath}`]: (call) =>
+        call.headers.get('If-Match') === '"00000099"'
+          ? json(200, { ...existing, ...(call.body as object), eTag: '"000000A0"' })
+          : problem(412, { code: 'precondition_failed' }),
+    });
+    renderApp(`/app/resumes/${id}`);
+
+    const city = await openContact();
+    fireEvent.change(city, { target: { value: 'Ankara' } });
+    fireEvent.click(screen.getByRole('button', { name: messages.common.save }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain(messages.conflict.title);
+    expect(screen.getByLabelText<HTMLInputElement>(c.city).value).toBe('Ankara');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: messages.common.save }).disabled).toBe(true);
+
+    fresh = true;
+    fireEvent.click(within(alert).getByRole('button', { name: messages.conflict.reload }));
+    const dialog = await screen.findByRole('alertdialog', { name: messages.conflict.confirmTitle });
+    fireEvent.click(within(dialog).getByRole('button', { name: messages.conflict.confirm }));
+    await waitFor(() => {
+      expect(screen.getByLabelText<HTMLInputElement>(c.city).value).toBe('Bursa');
+    });
+
+    fireEvent.change(screen.getByLabelText(c.city), { target: { value: 'Eskişehir' } });
+    fireEvent.click(screen.getByRole('button', { name: messages.common.save }));
+    await screen.findByText(messages.forms.saved(c.title));
+    expect(api.callsTo('PUT', contactPath).map((call) => call.headers.get('If-Match'))).toEqual([
+      '"00000010"',
+      '"00000099"',
+    ]);
+  });
+});

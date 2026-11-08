@@ -76,6 +76,28 @@ test('creates, edits and saves a resume, resolves a two-tab conflict, guards uns
   await expect(other.getByLabel('Unvan')).toHaveValue('Baş yazılım geliştirici');
   await expect(other.getByRole('status').filter({ hasText: 'Kayıtlı sürüm yüklendi.' })).toBeVisible();
 
+  // Contact has its own ETag: the same two-tab conflict, now on the contact.
+  await other.getByRole('button', { name: 'İletişim' }).click();
+  await expect(other.getByLabel('Şehir')).toHaveValue('İstanbul');
+  await page.getByRole('button', { name: 'İletişim' }).click();
+  await page.getByLabel('Şehir').fill('Ankara');
+  await page.getByRole('button', { name: 'Kaydet' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'İletişim kaydedildi.' })).toBeVisible();
+  await other.getByLabel('Şehir').fill('İzmir');
+  const contactConflict = other.waitForResponse((response) => response.request().method() === 'PUT');
+  await other.getByRole('button', { name: 'Kaydet' }).click();
+  expect((await contactConflict).status()).toBe(412);
+  const contactAlert = other.getByRole('alert').filter({ hasText: 'Bu kayıt başka yerde değişti' });
+  await expect(contactAlert).toBeVisible();
+  await expect(other.getByLabel('Şehir')).toHaveValue('İzmir');
+  await contactAlert.getByRole('button', { name: 'Yeni sürümü yükle' }).click();
+  await other
+    .getByRole('alertdialog', { name: 'Yeni sürüm yüklensin mi?' })
+    .getByRole('button', { name: 'Yazdıklarımı sil ve yükle' })
+    .click();
+  await expect(other.getByLabel('Şehir')).toHaveValue('Ankara');
+  await other.getByRole('button', { name: 'Ana bilgiler' }).click();
+
   // Unsaved changes: another section, the browser tab, and leaving the page all ask first.
   await other.getByLabel('Özet').fill('Kaydedilmemiş bir değişiklik.');
   await other.getByRole('button', { name: 'İletişim' }).click();
@@ -124,4 +146,10 @@ test('creates, edits and saves a resume, resolves a two-tab conflict, guards uns
   await expect(archived.getByText('Arşivlendi')).toBeVisible();
   await expect(archived.getByRole('button', { name: /Arşivle/ })).toHaveCount(0);
   await screenshots(page, testInfo, 'list');
+
+  // Unarchive needs no confirmation; the resume returns to the active list.
+  await archived.getByRole('button', { name: `Arşivden çıkar: ${second}` }).click();
+  await expect(page.getByRole('status').filter({ hasText: `“${second}” arşivden çıkarıldı.` })).toBeVisible();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  await expect(page.getByRole('region', { name: 'Arşiv' })).toHaveCount(0);
 });
