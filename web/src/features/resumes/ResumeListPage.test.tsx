@@ -128,3 +128,50 @@ describe('resume list', () => {
     expect(api.callsTo('GET', '/api/resumes?page=1&pageSize=20')).toHaveLength(1);
   });
 });
+
+describe('another user in the same tab', () => {
+  it('never shows the previous user\'s cached resumes after sign-out and a new sign-in', async () => {
+    let user: 'a' | 'b' = 'a';
+    let releaseB: () => void = () => undefined;
+    const bReady = new Promise<void>((resolve) => {
+      releaseB = resolve;
+    });
+    const person = (id: 'a' | 'b') => ({
+      id,
+      firstName: id === 'a' ? 'Ayşe' : 'Burak',
+      lastName: 'Deneme',
+      email: `${id}@example.test`,
+    });
+    serveApi({
+      ...signedInRoutes,
+      'POST /api/auth/refresh': () =>
+        json(200, { accessToken: 'token-a', expiresAt: '2030-01-01T00:00:00Z', user: person('a') }),
+      'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+      'POST /api/auth/login': () => {
+        user = 'b';
+        return json(200, { accessToken: 'token-b', expiresAt: '2030-01-01T00:00:00Z', user: person('b') });
+      },
+      [listPath]: async () => {
+        if (user === 'b') {
+          await bReady;
+          return page([item('b1', 'Burak özgeçmişi')]);
+        }
+        return page([item('a1', 'Ayşe özgeçmişi')]);
+      },
+    });
+    renderApp('/app/resumes');
+    expect(await screen.findByText('Ayşe özgeçmişi')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: messages.nav.signOut }));
+    fireEvent.change(await screen.findByLabelText(messages.login.email), { target: { value: 'b@example.test' } });
+    fireEvent.change(screen.getByLabelText(messages.login.password), { target: { value: 'parola' } });
+    fireEvent.click(screen.getByRole('button', { name: messages.login.submit }));
+
+    // B's list is still loading: A's cached list must not be shown meanwhile.
+    expect(await screen.findByRole('heading', { level: 1, name: t.title })).toBeTruthy();
+    expect(screen.queryByText('Ayşe özgeçmişi')).toBeNull();
+    releaseB();
+    expect(await screen.findByText('Burak özgeçmişi')).toBeTruthy();
+    expect(screen.queryByText('Ayşe özgeçmişi')).toBeNull();
+  });
+});

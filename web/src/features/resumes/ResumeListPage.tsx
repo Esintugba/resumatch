@@ -84,7 +84,7 @@ export function ResumeListPage() {
         <ul className={styles.list} aria-label={t.listLabel}>
           {items.map((item) => {
             const title = item.title ?? '';
-            const href = `/app/resumes/${item.id ?? ''}`;
+            const href = `/app/resumes/${encodeURIComponent(item.id ?? '')}`;
             return (
               <li key={item.id} className={styles.item}>
                 <div>

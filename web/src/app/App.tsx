@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider, type RouteObject } from 'react-router';
 import { apiBaseUrl } from '../api/config';
 import { createQueryClient } from '../api/queryClient';
+import { useCacheBoundToUser } from '../api/useCacheBoundToUser';
 import { AuthProvider } from '../auth/AuthContext';
 import { RequireAuth } from '../auth/RequireAuth';
 import type { AuthSession } from '../auth/session';
@@ -43,6 +44,7 @@ export function App({ session, queryClient }: { session: AuthSession; queryClien
   const [client] = useState(() => queryClient ?? createQueryClient());
   // A data router, because the editor blocks navigation while a form has unsaved changes.
   const [router] = useState(() => createBrowserRouter(routes));
+  useCacheBoundToUser(session, client);
 
   return (
     <QueryClientProvider client={client}>
