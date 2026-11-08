@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
 import { useServerWake, type ServerWakeOptions } from '../api/serverWake';
+import { messages } from '../i18n';
 
 interface ServerWakeGateProps extends ServerWakeOptions {
   children: ReactNode;
 }
 
-/** Renders its children once the API answers; until then, the cold start message. Draft: texts move to i18n in PR 7. */
+const t = messages.serverWake;
+
+/** Renders its children once the API answers; until then, the cold start message. Gives up after 90 s. */
 export function ServerWakeGate({ children, ...options }: ServerWakeGateProps) {
   const { status, elapsedSeconds, retry } = useServerWake(options);
 
@@ -16,17 +19,17 @@ export function ServerWakeGate({ children, ...options }: ServerWakeGateProps) {
       return null;
     case 'waking':
       return (
-        <section>
-          <p role="status">Sunucu uyanıyor, en fazla bir dakika sürebilir.</p>
-          <p>Geçen süre: {elapsedSeconds} sn</p>
+        <section className="card">
+          <p role="status">{t.waking}</p>
+          <p className="muted">{t.elapsed(elapsedSeconds)}</p>
         </section>
       );
     case 'unreachable':
       return (
-        <section>
-          <p role="alert">Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.</p>
-          <button type="button" onClick={retry}>
-            Tekrar dene
+        <section className="card">
+          <p role="alert">{t.unreachable}</p>
+          <button type="button" className="primary" onClick={retry}>
+            {t.retry}
           </button>
         </section>
       );
