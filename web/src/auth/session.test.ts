@@ -212,6 +212,18 @@ describe('AuthSession', () => {
     expect(api.callsTo('/api/auth/refresh')).toHaveLength(2); // restore + the single retry refresh
   });
 
+  it.each(['https://evil.example/x', '//evil.example/x', '/\\evil.example', 'api/auth/me'])(
+    'refuses to send the token to %s',
+    async (path) => {
+      const api = fakeApi({ '/api/auth/refresh': () => auth(tokenA) });
+      const { session } = createSession(api.fetchFn);
+      await session.restore();
+
+      await expect(session.authorizedFetch(path)).rejects.toThrow('needs an API path');
+      expect(api.calls).toHaveLength(1); // only the restore
+    },
+  );
+
   it('shares one refresh between concurrent 401s', async () => {
     let refreshes = 0;
     const tokens = new Map<string, number>();

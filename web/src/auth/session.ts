@@ -145,6 +145,10 @@ export class AuthSession {
    * retries the request once; a second 401 is returned as it is.
    */
   async authorizedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    // The token goes only to the API: a path, never a URL or a //host reference.
+    if (!path.startsWith('/') || path.startsWith('//') || path.startsWith('/\\')) {
+      throw new Error(`authorizedFetch needs an API path, got "${path}".`);
+    }
     const send = (token: string | null) => {
       const headers = new Headers(init.headers);
       if (token) headers.set('Authorization', `Bearer ${token}`);
